@@ -13,9 +13,9 @@ type AnnualRank string
 
 const (
 	RankStudentExcellent    AnnualRank = "HOÀN THÀNH XUẤT SẮC" // Tất cả môn HTT, phẩm chất năng lực T, kiểm tra >= 9
-	RankStudentGood         AnnualRank = "HOÀN THÀNH TỐT"     // Tất cả môn HTT, phẩm chất năng lực T, kiểm tra >= 7
-	RankStudentSatisfactory AnnualRank = "HOÀN THÀNH"         // Các môn HT, phẩm chất năng lực Đ, kiểm tra >= 5
-	RankStudentIncomplete   AnnualRank = "CHƯA HOÀN THÀNH"    // Có môn CHT hoặc kiểm tra < 5
+	RankStudentGood         AnnualRank = "HOÀN THÀNH TỐT"      // Tất cả môn HTT, phẩm chất năng lực T, kiểm tra >= 7
+	RankStudentSatisfactory AnnualRank = "HOÀN THÀNH"          // Các môn HT, phẩm chất năng lực Đ, kiểm tra >= 5
+	RankStudentIncomplete   AnnualRank = "CHƯA HOÀN THÀNH"     // Có môn CHT hoặc kiểm tra < 5
 )
 
 // AssessmentStrategy is the interface for primary evaluation strategies
@@ -135,14 +135,14 @@ func (s *StrategyTT27Primary) GenerateTranscriptSnapshot(
 	behavior domain.StudentBehaviorEvaluation,
 ) ([]byte, error) {
 	data := map[string]interface{}{
-		"regulation":        s.GetRegulationCode(),
-		"student_id":        student.ID,
-		"student_code":      student.StudentCode,
-		"full_name":         student.FullName,
-		"academic_year_id":  academicYearID,
-		"annual_rank":       rank,
-		"subjects":          subjects,
-		"behavior":          behavior,
+		"regulation":       s.GetRegulationCode(),
+		"student_id":       student.ID,
+		"student_code":     student.StudentCode,
+		"full_name":        student.FullName,
+		"academic_year_id": academicYearID,
+		"annual_rank":      rank,
+		"subjects":         subjects,
+		"behavior":         behavior,
 		"snapshot_created": time.Now().Format(time.RFC3339),
 	}
 	return json.MarshalIndent(data, "", "  ")

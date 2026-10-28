@@ -1,0 +1,795 @@
+openapi: 3.0.3
+info:
+  title: EduPrimary-KPI Core API
+  description: |
+    API backend cho Phần mềm Quản lý Trường Tiểu học tích hợp đánh giá KPI (QLTH / EduPrimary-KPI).
+
+    ## Căn cứ pháp lý của các nghiệp vụ
+    - **Thông tư 05/2025/TT-BGDĐT** — chế độ làm việc giáo viên phổ thông (805 tiết/năm, GVCN tiểu học giảm 4 tiết/tuần).
+    - **Thông tư 27/2020/TT-BGDĐT** — đánh giá học sinh tiểu học; **Thông tư 89/2026/TT-BGDĐT** sửa đổi, hiệu lực 01/12/2026.
+    - **Nghị định 90/2020/NĐ-CP** và **Nghị định 48/2023/NĐ-CP** — đánh giá, xếp loại viên chức.
+    - **Luật Thi đua, Khen thưởng 06/2022/QH15** — điều kiện sáng kiến/giải pháp đổi mới.
+    - **Nghị định 13/2023/NĐ-CP Điều 20** — bảo vệ dữ liệu cá nhân trẻ em (Digital Consent).
+    - **Thông tư 29/2024/TT-BGDĐT**, **Thông tư 19/2026/TT-BGDĐT** — cấm dạy thêm đối với học sinh tiểu học.
+
+    ## Xác thực & phân quyền
+    Tất cả endpoint dưới `/api/v1` yêu cầu hai header:
+    - `X-School-ID` (bắt buộc): UUID của trường — phục vụ multi-tenancy. Thiếu header này trả `401`.
+    - `X-User-Role` (bắt buộc): vai trò người gọi. Role không nằm trong danh sách cho phép của endpoint trả `403`.
+
+    Vai trò hợp lệ: `BGH`, `TO_TRUONG`, `GVCN`, `GVBM`, `KE_TOAN`, `VAN_THU`, `PHHS`, `SUPER_ADMIN` (toàn quyền).
+
+    ## Khuôn phản hồi chung
+    ```json
+    {"success": true, "code": 200, "message": "...", "data": {}}
+    ```
+  version: 1.0.0
+  contact:
+    name: QLTH Project
+    url: https://github.com/Hcnminh/QLTH
+  license:
+    name: Proprietary — chưa công bố giấy phép
+
+servers:
+  - url: http://localhost:8080
+    description: Local development (make run)
+  - url: https://api.qlth.example.vn
+    description: Production (placeholder — thay bằng tên miền thật khi triển khai VPS1 qua Traefik)
+
+tags:
+  - name: system
+    description: Health check và trạng thái dịch vụ
+  - name: teaching
+    description: Định mức tiết dạy và tính thừa giờ (Thông tư 05/2025/TT-BGDĐT)
+  - name: kpi
+    description: Đánh giá KPI 360 độ và xếp loại viên chức (NĐ 90/2020, NĐ 48/2023)
+  - name: evaluations
+    description: Trợ lý sư phạm gợi ý nhận xét học sinh (TT 27/2020, TT 89/2026)
+  - name: boarding
+    description: Bán trú — báo hủy suất ăn và hoàn tiền
+  - name: students
+    description: Hồ sơ học sinh và tiếp nhận tuyển sinh
+
+paths:
+  /health:
+    get:
+      tags: [system]
+      summary: Health check
+      description: Endpoint công khai, không yêu cầu header phân quyền. Dùng cho Docker/Compose healthcheck và load balancer probe.
+      operationId: getHealth
+      responses:
+        '200':
+          description: Dịch vụ hoạt động bình thường
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: healthy
+                  service:
+                    type: string
+                    example: eduprimary-kpi-core
+                  time:
+                    type: string
+                    format: date-time
+
+  /api/v1/teaching/calculate-quota:
+    post:
+      tags: [teaching]
+      summary: Tính định mức tiết dạy và số tiết thừa giờ
+      description: |
+        Áp dụng **Thông tư 05/2025/TT-BGDĐT**:
+        - Định mức chuẩn tiểu học **805 tiết/năm** (PTDT bán trú / lớp khuyết tật: 21 tiết/tuần).
+        - Giảm trừ: GVCN tiểu học **4 tiết/tuần**, tổ trưởng 3, tổ phó 1, nuôi con dưới 12 tháng 3, tư vấn tâm lý 3–8.
+        - Quy đổi: dạy hè tiếng Việt cho trẻ DTTS trước lớp 1 hệ số 1.5; dạy hòa nhập khuyết tật hệ số 0.2.
+        - `overtime_hours` = tổng tiết quy đổi − định mức thực, không âm.
+
+        Role được phép: `BGH`, `KE_TOAN`, `GVCN`, `GVBM`, `SUPER_ADMIN`.
+      operationId: calculateTeachingQuota
+      parameters:
+        - $ref: '#/components/parameters/SchoolId'
+        - $ref: '#/components/parameters/UserRole'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TeacherWorkloadProfile'
+            example:
+              teacher_id: GV001
+              teacher_name: Lê Thị Mai
+              school_type: PRIMARY
+              is_homeroom: true
+              is_head_subject: false
+              is_deputy_head_subject: false
+              has_young_child: false
+              counseling_hours_week: 0
+              inclusive_teaching_wk: 0
+              pre_grade1_ethnic_hours: 0
+              actual_taught_hours: 720
+              weeks_in_school_year: 35
+      responses:
+        '200':
+          description: Tính toán thành công
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiEnvelope'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/WorkloadQuotaCalculationResult'
+              example:
+                success: true
+                code: 200
+                message: Tính toán định mức thành công theo Thông tư 05/2025/TT-BGDĐT
+                data:
+                  standard_annual_hours: 805
+                  weekly_reduced_hours: 4
+                  annual_reduced_hours: 140
+                  net_annual_quota: 665
+                  inclusive_bonus_hours: 0
+                  total_effective_hours: 720
+                  overtime_hours: 55
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/MissingSchoolId'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  /api/v1/kpi/evaluate-individual:
+    post:
+      tags: [kpi]
+      summary: Đánh giá KPI 360 độ cho một cán bộ/giáo viên
+      description: |
+        Tính điểm tổng hợp theo trọng số cố định **40% hệ thống + 30% quản lý + 15% đồng nghiệp + 15% phụ huynh**,
+        sau đó quy đổi sang 4 mức xếp loại theo **NĐ 90/2020/NĐ-CP** và **NĐ 48/2023/NĐ-CP**.
+
+        Điểm liệt (bắt buộc xếp `KHÔNG HOÀN THÀNH NHIỆM VỤ` bất kể điểm số):
+        bị kỷ luật trong năm; vi phạm quy định cấm dạy thêm tiểu học (TT 29/2024, TT 19/2026);
+        để xảy ra tai nạn thương tích hoặc mất an toàn thực phẩm nghiêm trọng.
+
+        Ngưỡng: ≥90 + có sáng kiến/giải pháp đổi mới → xuất sắc; ≥90 thiếu sáng kiến → tốt; ≥75 → tốt; ≥50 → hoàn thành; <50 → không hoàn thành.
+
+        Role được phép: `BGH`, `TO_TRUONG`, `SUPER_ADMIN`.
+      operationId: evaluateIndividualKpi
+      parameters:
+        - $ref: '#/components/parameters/SchoolId'
+        - $ref: '#/components/parameters/UserRole'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/StaffKPISubmission'
+      responses:
+        '200':
+          description: Đánh giá thành công
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiEnvelope'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/FinalKPIEvaluation'
+              example:
+                success: true
+                code: 200
+                message: Đánh giá xếp loại thành công
+                data:
+                  staff_id: 3f2b8c1e-6a4d-4f0a-9c2e-1b7d5e8a4c11
+                  staff_name: Lê Văn Cường
+                  final_score: 91.1
+                  official_rank: HOÀN THÀNH XUẤT SẮC NHIỆM VỤ
+                  reason: Điểm KPI >= 90 và có sáng kiến / giải pháp đổi mới sáng tạo được công nhận
+                  calculated_at: '2026-10-28T09:00:00+07:00'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/MissingSchoolId'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  /api/v1/kpi/evaluate-school-batch:
+    post:
+      tags: [kpi]
+      summary: Xếp loại KPI toàn trường kèm trần 20% xuất sắc
+      description: |
+        Đánh giá hàng loạt toàn bộ cán bộ, sau đó áp dụng **trần 20%** trên tổng số người đạt "hoàn thành tốt" trở lên
+        theo **NĐ 90/2020/NĐ-CP**. Nếu số ứng viên xuất sắc vượt trần, hệ thống giữ lại những người điểm cao nhất
+        và hạ số còn lại xuống mức "hoàn thành tốt", có ghi rõ lý do trong `reason`.
+
+        Role được phép: `BGH`, `SUPER_ADMIN`.
+      operationId: evaluateSchoolBatchKpi
+      parameters:
+        - $ref: '#/components/parameters/SchoolId'
+        - $ref: '#/components/parameters/UserRole'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: array
+              items:
+                $ref: '#/components/schemas/StaffKPISubmission'
+              minItems: 1
+      responses:
+        '200':
+          description: Xếp loại thành công
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiEnvelope'
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/FinalKPIEvaluation'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/MissingSchoolId'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '500':
+          description: Danh sách rỗng hoặc lỗi nội bộ
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+
+  /api/v1/evaluations/ai-copilot:
+    post:
+      tags: [evaluations]
+      summary: Trợ lý sư phạm gợi ý nhận xét học sinh
+      description: |
+        Sinh 2–3 gợi ý nhận xét chuẩn mực sư phạm theo **Thông tư 27/2020/TT-BGDĐT**
+        (và **TT 89/2026/TT-BGDĐT** từ 01/12/2026), dựa trên mức đạt của môn học và điểm kiểm tra định kỳ.
+        Giúp giáo viên tránh nhận xét rập khuôn và giảm thời gian ghi sổ.
+
+        Role được phép: `BGH`, `GVCN`, `GVBM`, `SUPER_ADMIN`.
+      operationId: aiPedagogicalCopilot
+      parameters:
+        - $ref: '#/components/parameters/SchoolId'
+        - $ref: '#/components/parameters/UserRole'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [subject_name, achievement_level, student_name]
+              properties:
+                subject_name:
+                  type: string
+                  description: Tên môn học hoặc hoạt động giáo dục
+                  example: Toán
+                achievement_level:
+                  type: string
+                  description: Mức đạt theo TT 27/2020
+                  enum: [HTT, HT, CHT]
+                exam_score:
+                  type: number
+                  format: float
+                  minimum: 1
+                  maximum: 10
+                  description: Điểm kiểm tra định kỳ (chỉ với môn có điểm số)
+                  example: 10
+                diligence_level:
+                  type: string
+                  description: Mức phẩm chất Chăm chỉ
+                  enum: [T, D, C]
+                student_name:
+                  type: string
+                  example: Minh Khôi
+      responses:
+        '200':
+          description: Sinh gợi ý thành công
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  code:
+                    type: integer
+                  message:
+                    type: string
+                  suggestions:
+                    type: array
+                    items:
+                      type: string
+              example:
+                success: true
+                code: 200
+                message: Sinh gợi ý nhận xét sư phạm thành công
+                suggestions:
+                  - Em Minh Khôi tiếp thu bài rất nhanh, nắm vững kiến thức môn Toán, tích cực phát biểu và có tư duy sáng tạo tốt.
+                  - Em Minh Khôi có thành tích xuất sắc môn Toán, kĩ năng thực hành thành thạo, chữ viết cẩn thận, gương mẫu trong học tập.
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/MissingSchoolId'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  /api/v1/boarding/cancel-meal:
+    post:
+      tags: [boarding]
+      summary: Báo hủy suất ăn bán trú và xác định hoàn tiền
+      description: |
+        Quy tắc nhà trường: báo hủy **trước 08:00 sáng** (`cancellation_hour < 8`) được hoàn/bù trừ tiền ăn
+        vào kỳ sau; báo hủy từ 08:00 trở đi không hoàn tiền do bếp đã chuẩn bị thực phẩm.
+        `meal_fee_per_day` mặc định 35000 VNĐ nếu bỏ trống hoặc ≤ 0.
+
+        Role được phép: `BGH`, `KE_TOAN`, `GVCN`, `PHHS`, `SUPER_ADMIN`.
+      operationId: cancelBoardingMeal
+      parameters:
+        - $ref: '#/components/parameters/SchoolId'
+        - $ref: '#/components/parameters/UserRole'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [student_id, attendance_date, cancellation_hour]
+              properties:
+                student_id:
+                  type: string
+                  format: uuid
+                attendance_date:
+                  type: string
+                  format: date
+                  description: Ngày ăn theo định dạng YYYY-MM-DD
+                  example: '2026-10-28'
+                cancellation_hour:
+                  type: integer
+                  minimum: 0
+                  maximum: 23
+                  description: Giờ phụ huynh bấm báo hủy (0-23)
+                  example: 7
+                meal_fee_per_day:
+                  type: number
+                  format: float
+                  description: Tiền ăn mỗi ngày (VNĐ). Mặc định 35000.
+                  example: 35000
+      responses:
+        '200':
+          description: Đã ghi nhận hủy suất ăn
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiEnvelope'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          student_id:
+                            type: string
+                            format: uuid
+                          attendance_date:
+                            type: string
+                          is_cancelled:
+                            type: boolean
+                          is_refund_eligible:
+                            type: boolean
+                          refund_amount:
+                            type: number
+                            format: float
+                          note:
+                            type: string
+              example:
+                success: true
+                code: 200
+                data:
+                  student_id: 3f2b8c1e-6a4d-4f0a-9c2e-1b7d5e8a4c22
+                  attendance_date: '2026-10-28'
+                  is_cancelled: true
+                  is_refund_eligible: true
+                  refund_amount: 35000
+                  note: Báo hủy hợp lệ trước 08:00 sáng - Tự động bù trừ vào hóa đơn tiền ăn kỳ sau
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/MissingSchoolId'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  /api/v1/students/onboard:
+    post:
+      tags: [students]
+      summary: Tiếp nhận hồ sơ học sinh (tuyển sinh đầu cấp)
+      description: |
+        Tiếp nhận học sinh mới, đối soát số định danh cá nhân (VNeID / Luật Căn cước 2023).
+
+        **Ràng buộc pháp lý bắt buộc** theo Điều 20 Nghị định 13/2023/NĐ-CP:
+        `has_digital_consent` phải là `true` — tức đã thu được sự đồng ý của cha mẹ/người giám hộ.
+        Nếu thiếu, API trả **422 Unprocessable Entity** và không tạo hồ sơ.
+
+        Role được phép: `BGH`, `VAN_THU`, `SUPER_ADMIN`.
+      operationId: onboardStudent
+      parameters:
+        - $ref: '#/components/parameters/SchoolId'
+        - $ref: '#/components/parameters/UserRole'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/StudentIntake'
+      responses:
+        '201':
+          description: Tiếp nhận thành công
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiEnvelope'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/StudentIntake'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/MissingSchoolId'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '422':
+          description: Thiếu sự đồng thuận số của cha mẹ/người giám hộ (NĐ 13/2023 Điều 20)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+              example:
+                success: false
+                code: 422
+                message: Chưa có sự đồng thuận số (Digital Consent) của cha mẹ/người giám hộ theo Điều 20 Nghị định 13/2023/NĐ-CP
+
+components:
+  parameters:
+    SchoolId:
+      name: X-School-ID
+      in: header
+      required: true
+      description: UUID của trường (multi-tenancy). Thiếu header này trả 401.
+      schema:
+        type: string
+        format: uuid
+    UserRole:
+      name: X-User-Role
+      in: header
+      required: true
+      description: Vai trò người gọi. `SUPER_ADMIN` bypass mọi kiểm tra role.
+      schema:
+        type: string
+        enum: [BGH, TO_TRUONG, GVCN, GVBM, KE_TOAN, VAN_THU, PHHS, SUPER_ADMIN]
+
+  responses:
+    BadRequest:
+      description: Dữ liệu đầu vào không hợp lệ
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ApiError'
+          example:
+            success: false
+            code: 400
+            message: 'Dữ liệu đầu vào không hợp lệ: Key: ''...'' Error:Field validation for ''...'' failed on the ''required'' tag'
+    MissingSchoolId:
+      description: Thiếu header X-School-ID
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ApiError'
+          example:
+            success: false
+            code: 401
+            message: Thiếu mã định danh trường học (X-School-ID)
+    Forbidden:
+      description: Role không được phép truy cập endpoint này
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ApiError'
+          example:
+            success: false
+            code: 403
+            message: Không có quyền thực hiện thao tác này
+
+  schemas:
+    ApiEnvelope:
+      type: object
+      properties:
+        success:
+          type: boolean
+        code:
+          type: integer
+        message:
+          type: string
+
+    ApiError:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: false
+        code:
+          type: integer
+        message:
+          type: string
+
+    TeacherWorkloadProfile:
+      type: object
+      description: Thông số làm việc của giáo viên trong một năm học (Thông tư 05/2025/TT-BGDĐT)
+      required: [teacher_id, teacher_name]
+      properties:
+        teacher_id:
+          type: string
+          example: GV001
+        teacher_name:
+          type: string
+          example: Lê Thị Mai
+        school_type:
+          type: string
+          description: Loại trường quyết định định mức chuẩn
+          enum: [PRIMARY, ETHNIC_BOARDING_PRIMARY, SPECIAL_EDUCATION]
+          default: PRIMARY
+        is_homeroom:
+          type: boolean
+          description: Giáo viên chủ nhiệm — giảm 4 tiết/tuần (tiểu học)
+        is_head_subject:
+          type: boolean
+          description: Tổ trưởng chuyên môn — giảm 3 tiết/tuần
+        is_deputy_head_subject:
+          type: boolean
+          description: Tổ phó chuyên môn — giảm 1 tiết/tuần
+        has_young_child:
+          type: boolean
+          description: Nữ giáo viên nuôi con dưới 12 tháng — giảm 3 tiết/tuần
+        counseling_hours_week:
+          type: integer
+          minimum: 0
+          maximum: 8
+          description: Số tiết kiêm nhiệm tư vấn tâm lý học sinh mỗi tuần
+        inclusive_teaching_wk:
+          type: integer
+          description: Số tiết dạy hòa nhập trẻ khuyết tật mỗi tuần (quy đổi hệ số 0.2)
+        pre_grade1_ethnic_hours:
+          type: integer
+          description: Số tiết dạy tiếng Việt cho trẻ DTTS trước lớp 1 trong hè (hệ số 1.5)
+        actual_taught_hours:
+          type: integer
+          description: Tổng số tiết thực tế đã giảng dạy cả năm
+          example: 720
+        weeks_in_school_year:
+          type: integer
+          description: Số tuần thực dạy; mặc định 35 nếu ≤ 0
+          default: 35
+          example: 35
+
+    WorkloadQuotaCalculationResult:
+      type: object
+      properties:
+        standard_annual_hours:
+          type: integer
+          description: Định mức chuẩn cả năm (805 với tiểu học thường)
+          example: 805
+        weekly_reduced_hours:
+          type: integer
+          description: Tổng số tiết giảm mỗi tuần
+          example: 4
+        annual_reduced_hours:
+          type: integer
+          description: Tổng số tiết giảm cả năm
+          example: 140
+        net_annual_quota:
+          type: integer
+          description: Định mức thực phải dạy cả năm
+          example: 665
+        inclusive_bonus_hours:
+          type: number
+          format: float
+          description: Số tiết quy đổi từ dạy hòa nhập
+        total_effective_hours:
+          type: number
+          format: float
+          description: Tổng số tiết quy đổi đã thực hiện
+          example: 720
+        overtime_hours:
+          type: number
+          format: float
+          description: Số tiết vượt định mức (thừa giờ) để thanh toán
+          example: 55
+
+    KpiCriterion:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        code:
+          type: string
+          example: KPI-GV-01
+        title:
+          type: string
+        weight:
+          type: number
+          format: float
+          example: 0.2
+        max_score:
+          type: number
+          format: float
+          example: 100
+        source_type:
+          type: string
+          enum: [SYSTEM_AUTOMATED, MANAGER_REVIEW, PEER_REVIEW, PARENT_CSAT]
+        actual_score:
+          type: number
+          format: float
+
+    StaffKPISubmission:
+      type: object
+      description: Dữ liệu đánh giá KPI 360 độ của một cán bộ/giáo viên
+      required: [staff_id, automated_system_score, manager_assessment_score, peer_review_score, parent_satisfaction_score]
+      properties:
+        staff_id:
+          type: string
+          format: uuid
+        staff_name:
+          type: string
+          example: Lê Văn Cường
+        job_position:
+          type: string
+          description: Vị trí việc làm theo Thông tư 20/2023/TT-BGDĐT
+          example: HOMEROOM_TEACHER
+        automated_system_score:
+          type: number
+          format: float
+          minimum: 0
+          maximum: 100
+          description: Điểm hệ thống đo tự động — trọng số 40%
+          example: 92
+        manager_assessment_score:
+          type: number
+          format: float
+          minimum: 0
+          maximum: 100
+          description: Điểm BGH/khối trưởng chấm — trọng số 30%
+          example: 90
+        peer_review_score:
+          type: number
+          format: float
+          minimum: 0
+          maximum: 100
+          description: Điểm đồng nghiệp đánh giá chéo — trọng số 15%
+          example: 90
+        parent_satisfaction_score:
+          type: number
+          format: float
+          minimum: 0
+          maximum: 100
+          description: Điểm khảo sát phụ huynh (CSAT) — trọng số 15%
+          example: 90
+        criteria_details:
+          type: array
+          items:
+            $ref: '#/components/schemas/KpiCriterion'
+        has_disciplinary_action:
+          type: boolean
+          description: Bị kỷ luật Đảng/chính quyền trong năm (NĐ 48/2023) — điểm liệt
+        violated_tutoring_rules:
+          type: boolean
+          description: Vi phạm quy định cấm dạy thêm tiểu học (TT 29/2024, TT 19/2026) — điểm liệt
+        has_severe_safety_incident:
+          type: boolean
+          description: Để xảy ra tai nạn thương tích / mất ATTP nghiêm trọng — điểm liệt
+        has_innovative_solution:
+          type: boolean
+          description: Có sáng kiến hoặc giải pháp đổi mới sáng tạo được công nhận (Luật TĐKT 2022)
+
+    FinalKPIEvaluation:
+      type: object
+      properties:
+        staff_id:
+          type: string
+          format: uuid
+        staff_name:
+          type: string
+        final_score:
+          type: number
+          format: float
+          description: Điểm tổng hợp có trọng số, thang 100
+        official_rank:
+          type: string
+          description: Mức xếp loại viên chức
+          enum:
+            - HOÀN THÀNH XUẤT SẮC NHIỆM VỤ
+            - HOÀN THÀNH TỐT NHIỆM VỤ
+            - HOÀN THÀNH NHIỆM VỤ
+            - KHÔNG HOÀN THÀNH NHIỆM VỤ
+        reason:
+          type: string
+          description: Căn cứ xếp loại (ghi rõ khi bị điểm liệt hoặc bị hạ do trần 20%)
+        calculated_at:
+          type: string
+          format: date-time
+
+    StudentIntake:
+      type: object
+      description: Hồ sơ tiếp nhận học sinh. Dữ liệu trẻ em dưới 14 tuổi — chịu sự điều chỉnh của NĐ 13/2023/NĐ-CP.
+      required: [student_code, full_name, birth_date, guardian_name, guardian_phone, has_digital_consent]
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Server tự sinh nếu bỏ trống
+        school_id:
+          type: string
+          format: uuid
+        national_id:
+          type: string
+          maxLength: 12
+          description: Số định danh cá nhân 12 số (Luật Căn cước 2023). KHÔNG ghi vào log.
+          example: '001206012345'
+        student_code:
+          type: string
+          example: HS1001
+        full_name:
+          type: string
+          example: Nguyễn Hoàng
+        birth_date:
+          type: string
+          format: date-time
+        gender:
+          type: string
+          enum: [MALE, FEMALE]
+        ethnicity:
+          type: string
+          example: Kinh
+        current_class_id:
+          type: string
+          format: uuid
+        status:
+          type: string
+          enum: [STUDYING, TRANSFERRED, DROPPED, GRADUATED]
+          default: STUDYING
+        is_inclusive_education:
+          type: boolean
+          description: Học sinh khuyết tật học hòa nhập (Thông tư 03/2018/TT-BGDĐT)
+        guardian_name:
+          type: string
+        guardian_national_id:
+          type: string
+          maxLength: 12
+        guardian_phone:
+          type: string
+        guardian_relationship:
+          type: string
+          enum: [FATHER, MOTHER, LEGAL_GUARDIAN]
+        has_digital_consent:
+          type: boolean
+          description: 'BẮT BUỘC true — sự đồng ý của cha mẹ/người giám hộ theo Điều 20 NĐ 13/2023. Thiếu sẽ trả 422.'
+        consent_signed_at:
+          type: string
+          format: date-time
+          nullable: true
+        consent_method:
+          type: string
+          description: Phương thức thu thập đồng thuận
+          enum: [VNEID_SSO, SMS_OTP, PORTAL_SIGN]
+        created_at:
+          type: string
+          format: date-time

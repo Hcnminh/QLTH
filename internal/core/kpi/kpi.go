@@ -21,41 +21,41 @@ const (
 
 // KPICriteria represents a measurable metric in the KPI tree
 type KPICriteria struct {
-	ID           uuid.UUID `json:"id"`
-	Code         string    `json:"code"`
-	Title        string    `json:"title"`
-	Weight       float64   `json:"weight"`       // e.g. 0.20 for 20%
-	MaxScore     float64   `json:"max_score"`    // 100
-	SourceType   string    `json:"source_type"`  // 'SYSTEM_AUTOMATED', 'MANAGER_REVIEW', 'PEER_REVIEW', 'PARENT_CSAT'
-	ActualScore  float64   `json:"actual_score"` // 0 - 100
+	ID          uuid.UUID `json:"id"`
+	Code        string    `json:"code"`
+	Title       string    `json:"title"`
+	Weight      float64   `json:"weight"`       // e.g. 0.20 for 20%
+	MaxScore    float64   `json:"max_score"`    // 100
+	SourceType  string    `json:"source_type"`  // 'SYSTEM_AUTOMATED', 'MANAGER_REVIEW', 'PEER_REVIEW', 'PARENT_CSAT'
+	ActualScore float64   `json:"actual_score"` // 0 - 100
 }
 
 // StaffKPISubmission is the assessment input for a specific teacher/staff
 type StaffKPISubmission struct {
-	StaffID                 uuid.UUID      `json:"staff_id"`
-	StaffName               string         `json:"staff_name"`
-	JobPosition             string         `json:"job_position"` // 'HOMEROOM_TEACHER', 'SUBJECT_TEACHER', 'PRINCIPAL'
-	AutomatedSystemScore    float64        `json:"automated_system_score"`    // 40%
-	ManagerAssessmentScore  float64        `json:"manager_assessment_score"`  // 30%
-	PeerReviewScore         float64        `json:"peer_review_score"`         // 15%
-	ParentSatisfactionScore float64        `json:"parent_satisfaction_score"` // 15%
-	CriteriaDetails         []KPICriteria  `json:"criteria_details"`
+	StaffID                 uuid.UUID     `json:"staff_id"`
+	StaffName               string        `json:"staff_name"`
+	JobPosition             string        `json:"job_position"`              // 'HOMEROOM_TEACHER', 'SUBJECT_TEACHER', 'PRINCIPAL'
+	AutomatedSystemScore    float64       `json:"automated_system_score"`    // 40%
+	ManagerAssessmentScore  float64       `json:"manager_assessment_score"`  // 30%
+	PeerReviewScore         float64       `json:"peer_review_score"`         // 15%
+	ParentSatisfactionScore float64       `json:"parent_satisfaction_score"` // 15%
+	CriteriaDetails         []KPICriteria `json:"criteria_details"`
 
 	// Legal Constraints & Disciplinary conditions
-	HasDisciplinaryAction   bool `json:"has_disciplinary_action"`   // Bị kỷ luật trong năm (NĐ 48/2023)
-	ViolatedTutoringRules   bool `json:"violated_tutoring_rules"`   // Vi phạm cấm dạy thêm tiểu học (TT 29/2024 & TT 19/2026)
+	HasDisciplinaryAction   bool `json:"has_disciplinary_action"`    // Bị kỷ luật trong năm (NĐ 48/2023)
+	ViolatedTutoringRules   bool `json:"violated_tutoring_rules"`    // Vi phạm cấm dạy thêm tiểu học (TT 29/2024 & TT 19/2026)
 	HasSevereSafetyIncident bool `json:"has_severe_safety_incident"` // Mất an toàn học đường/ngộ độc
-	HasInnovativeSolution   bool `json:"has_innovative_solution"`   // Có giải pháp sáng tạo/SKKN (Luật TĐKT 2022)
+	HasInnovativeSolution   bool `json:"has_innovative_solution"`    // Có giải pháp sáng tạo/SKKN (Luật TĐKT 2022)
 }
 
 // FinalKPIEvaluation holds calculated scores and official rank
 type FinalKPIEvaluation struct {
-	StaffID            uuid.UUID            `json:"staff_id"`
-	StaffName          string               `json:"staff_name"`
-	FinalScore         float64              `json:"final_score"` // 0 - 100
-	OfficialRank       ClassificationResult `json:"official_rank"`
-	Reason             string               `json:"reason"`
-	CalculatedAt       time.Time            `json:"calculated_at"`
+	StaffID      uuid.UUID            `json:"staff_id"`
+	StaffName    string               `json:"staff_name"`
+	FinalScore   float64              `json:"final_score"` // 0 - 100
+	OfficialRank ClassificationResult `json:"official_rank"`
+	Reason       string               `json:"reason"`
+	CalculatedAt time.Time            `json:"calculated_at"`
 }
 
 // Engine implements the KPI calculation service

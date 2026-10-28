@@ -98,8 +98,8 @@ type Staff struct {
 type Student struct {
 	ID                   uuid.UUID `json:"id"`
 	SchoolID             uuid.UUID `json:"school_id"`
-	NationalID           string    `json:"national_id"`   // Mã định danh cá nhân 12 số
-	StudentCode          string    `json:"student_code"`  // Mã Bộ GD&ĐT
+	NationalID           string    `json:"national_id"`  // Mã định danh cá nhân 12 số
+	StudentCode          string    `json:"student_code"` // Mã Bộ GD&ĐT
 	FullName             string    `json:"full_name"`
 	BirthDate            time.Time `json:"birth_date"`
 	Gender               string    `json:"gender"`
@@ -146,9 +146,9 @@ type StudentSubjectEvaluation struct {
 	IsAIAssisted       bool   `json:"is_ai_assisted"`
 
 	// Exam score (1.0 to 10.0 for scored subjects)
-	ExamScore           *float64 `json:"exam_score,omitempty"`
-	IsComputerBasedTest bool     `json:"is_computer_based_test"` // TT 89/2026
-	IsCentralizedExam   bool     `json:"is_centralized_exam"`   // Đề chung Sở/Phòng Lớp 5 (TT 89/2026)
+	ExamScore           *float64  `json:"exam_score,omitempty"`
+	IsComputerBasedTest bool      `json:"is_computer_based_test"` // TT 89/2026
+	IsCentralizedExam   bool      `json:"is_centralized_exam"`    // Đề chung Sở/Phòng Lớp 5 (TT 89/2026)
 	UpdatedAt           time.Time `json:"updated_at"`
 }
 
@@ -186,17 +186,17 @@ type StudentBehaviorEvaluation struct {
 
 // BoardingMenu represents a daily menu with nutritional facts
 type BoardingMenu struct {
-	ID                     uuid.UUID `json:"id"`
-	SchoolID               uuid.UUID `json:"school_id"`
-	MenuDate               time.Time `json:"menu_date"`
-	MealType               string    `json:"meal_type"` // 'LUNCH', 'SNACK', 'BREAKFAST'
-	DishesDescription      string    `json:"dishes_description"`
-	TotalKcal              float64   `json:"total_kcal"` // 600 - 750 Kcal for primary lunch
-	ProteinPercent         float64   `json:"protein_percent"`
-	LipidPercent           float64   `json:"lipid_percent"`
-	GlucidPercent          float64   `json:"glucid_percent"`
+	ID                      uuid.UUID `json:"id"`
+	SchoolID                uuid.UUID `json:"school_id"`
+	MenuDate                time.Time `json:"menu_date"`
+	MealType                string    `json:"meal_type"` // 'LUNCH', 'SNACK', 'BREAKFAST'
+	DishesDescription       string    `json:"dishes_description"`
+	TotalKcal               float64   `json:"total_kcal"` // 600 - 750 Kcal for primary lunch
+	ProteinPercent          float64   `json:"protein_percent"`
+	LipidPercent            float64   `json:"lipid_percent"`
+	GlucidPercent           float64   `json:"glucid_percent"`
 	SampleRetentionVerified bool      `json:"sample_retention_verified"` // Lưu mẫu 24h
-	PhotoURL               string    `json:"photo_url"`
+	PhotoURL                string    `json:"photo_url"`
 }
 
 // BoardingDailyAttendance represents daily meal attendance

@@ -1,0 +1,65 @@
+name: Yêu cầu tính năng (Feature Request)
+description: Đề xuất một tính năng hoặc cải tiến mới
+title: "[Feature]: "
+labels: ["type/feature", "triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Mô tả tính năng bạn muốn thêm. Với repo này, tính năng mới thường phải bám theo một văn bản pháp lý
+        hoặc nhu cầu nghiệp vụ cụ thể của trường học — hãy nêu rõ căn cứ.
+  - type: textarea
+    id: problem
+    attributes:
+      label: Vấn đề đang gặp
+      description: Nỗi đau (pain point) hiện tại là gì? Ai bị ảnh hưởng (BGH, giáo viên, kế toán, phụ huynh)?
+      placeholder: "Ví dụ: Kế toán phải đối chiếu thừa giờ thủ công trên Excel mỗi cuối kỳ, dễ sai và bị giáo viên khiếu nại."
+    validations:
+      required: true
+  - type: textarea
+    id: solution
+    attributes:
+      label: Giải pháp đề xuất
+      description: Mô tả hành vi mong muốn. Nếu là API mới, nêu endpoint, method, role được phép và payload.
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Các phương án đã cân nhắc
+      description: Cách làm khác và lý do không chọn.
+  - type: dropdown
+    id: area
+    attributes:
+      label: Phân hệ liên quan
+      options:
+        - internal/core/kpi (KPI 360 & xếp loại viên chức)
+        - internal/core/teaching (Định mức tiết dạy TT 05/2025)
+        - internal/core/assessment (Đánh giá học sinh TT 27/TT 89)
+        - internal/core/domain (Entities)
+        - internal/api (Router/Handlers/Middleware)
+        - Bán trú / Dinh dưỡng
+        - Y tế học đường
+        - Học bạ số & Ký số
+        - Tài chính / Học phí / VietQR
+        - Tài liệu & OpenAPI
+        - Khác
+    validations:
+      required: true
+  - type: textarea
+    id: legal-ref
+    attributes:
+      label: Căn cứ pháp lý
+      description: Văn bản, số điều khoản, ngày hiệu lực. Bắt buộc nếu tính năng liên quan nghiệp vụ nhà nước.
+      placeholder: "Ví dụ: Thông tư 89/2026/TT-BGDĐT hiệu lực 01/12/2026 — kiểm tra định kỳ trên máy tính."
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Tiêu chí nghiệm thu
+      description: Liệt kê điều kiện để coi là hoàn thành, kèm test cần viết.
+      placeholder: |
+        - [ ] Endpoint trả đúng X khi input Y
+        - [ ] Có unit test trong internal/core/...
+        - [ ] Đã cập nhật docs/openapi.yaml
+    validations:
+      required: true

@@ -1,0 +1,42 @@
+# Dependabot — tự động tạo PR cập nhật dependency.
+# Chính sách supply-chain: bản vá (patch) áp dụng sau 3 ngày phát hành để giảm rủi ro
+# phiên bản lỗi; minor/major chờ 7 ngày (đồng bộ với renovate-style minimum release age).
+version: 2
+updates:
+  # Go modules
+  - package-ecosystem: "gomod"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    open-pull-requests-limit: 5
+    labels:
+      - "type/chore"
+      - "area/deps"
+    groups:
+      go-minor-patch:
+        update-types: ["minor", "patch"]
+    ignore:
+      # Không tự bump major của gin — cần review thủ công vì ảnh hưởng router/middleware
+      - dependency-name: "github.com/gin-gonic/gin"
+        update-types: ["version-update:semver-major"]
+
+  # GitHub Actions
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 5
+    labels:
+      - "type/chore"
+      - "area/ci"
+
+  # Python scripts (PyYAML dùng cho validate/generate docs)
+  - package-ecosystem: "pip"
+    directory: "/scripts"
+    schedule:
+      interval: "monthly"
+    open-pull-requests-limit: 3
+    labels:
+      - "type/chore"
+      - "area/scripts"

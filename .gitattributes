@@ -1,0 +1,17 @@
+# Git LFS: văn bản pháp lý gốc là PDF có chữ ký số, dung lượng lớn (1-5 MB/tệp).
+# Đưa vào LFS để tránh phình repo và giữ nguyên tính toàn vẹn tài liệu.
+docs/phap_ly/*.pdf filter=lfs diff=lfs merge=lfs -text
+
+# Chuẩn hóa line ending cho mã nguồn và tài liệu
+*.go    text eol=lf
+*.md    text eol=lf
+*.yaml  text eol=lf
+*.yml   text eol=lf
+*.json  text eol=lf
+*.py    text eol=lf
+*.sh    text eol=lf
+
+# Nhị phân — không diff
+*.png   binary
+*.jpg   binary
+*.ico   binary

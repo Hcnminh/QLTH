@@ -13,11 +13,20 @@ bin/
 # Output of the go coverage tool
 *.out
 
-# Environment variables
+# Environment variables — giữ lại .env.example làm template
 .env
 .env.local
+.env.*.local
 
 # IDE
 .idea/
 .vscode/
 *.swp
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Python cache (scripts/)
+__pycache__/
+*.pyc

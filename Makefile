@@ -1,6 +1,9 @@
-.PHONY: all build test run lint clean docker-up docker-down
+.PHONY: all deps build test run lint fmt-check docs clean docker-up docker-down
 
 all: build test
+
+deps:
+	go mod download
 
 build:
 	mkdir -p bin
@@ -14,6 +17,16 @@ run:
 
 lint:
 	go vet ./...
+	@out="$$(gofmt -l . 2>/dev/null)"; \
+	if [ -n "$$out" ]; then echo "gofmt cần format lại:"; echo "$$out"; exit 1; fi
+
+docs:
+	python3 scripts/validate_openapi.py
+	python3 scripts/generate_api_docs.py
+
+docs-check:
+	python3 scripts/validate_openapi.py
+	python3 scripts/generate_api_docs.py --check
 
 clean:
 	rm -rf bin

@@ -1,0 +1,86 @@
+name: Báo lỗi (Bug Report)
+description: Báo cáo một hành vi sai lệch so với kỳ vọng
+title: "[Bug]: "
+labels: ["type/bug", "triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Cảm ơn bạn đã báo lỗi. Vui lòng điền đủ các mục bên dưới để agent/người xử lý tái hiện được vấn đề.
+  - type: textarea
+    id: summary
+    attributes:
+      label: Mô tả ngắn gọn
+      description: Chuyện gì đang xảy ra và kỳ vọng đúng là gì?
+      placeholder: "Ví dụ: Tính định mức tiết dạy trả về net_annual_quota = 669 thay vì 665 với GVCN tiểu học."
+    validations:
+      required: true
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: Các bước tái hiện
+      description: Lệnh gọi hoặc thao tác cụ thể. Kèm payload nếu là lỗi API.
+      placeholder: |
+        1. make run
+        2. curl -X POST http://localhost:8080/api/v1/teaching/calculate-quota \
+             -H 'X-School-ID: <uuid>' -H 'X-User-Role: BGH' \
+             -d '{...}'
+        3. Quan sát giá trị overtime_hours
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: Kết quả thực tế
+      placeholder: "Dán response JSON hoặc log lỗi."
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Kết quả kỳ vọng
+      placeholder: "Giá trị đúng phải là gì, và căn cứ vào đâu?"
+    validations:
+      required: true
+  - type: dropdown
+    id: area
+    attributes:
+      label: Phân hệ bị ảnh hưởng
+      options:
+        - internal/core/kpi (KPI 360 & xếp loại viên chức)
+        - internal/core/teaching (Định mức tiết dạy TT 05/2025)
+        - internal/core/assessment (Đánh giá học sinh TT 27/TT 89)
+        - internal/core/domain (Entities)
+        - internal/api (Router/Handlers/Middleware)
+        - docs (Tài liệu, OpenAPI, runbook)
+        - infra (Dockerfile, docker-compose, Makefile)
+        - Khác
+    validations:
+      required: true
+  - type: dropdown
+    id: priority
+    attributes:
+      label: Mức độ nghiêm trọng
+      options:
+        - "priority/P0 — Sai kết quả pháp lý hoặc lộ dữ liệu trẻ em, phải sửa ngay"
+        - "priority/P1 — Sai nghiệp vụ nghiêm trọng, ảnh hưởng nhiều trường"
+        - "priority/P2 — Lỗi có workaround"
+        - "priority/P3 — Nhỏ, không gấp"
+    validations:
+      required: true
+  - type: textarea
+    id: legal-ref
+    attributes:
+      label: Căn cứ pháp lý liên quan (nếu có)
+      description: Nêu điều khoản cụ thể nếu lỗi liên quan đến tính đúng đắn pháp lý.
+      placeholder: "Ví dụ: Thông tư 05/2025/TT-BGDĐT Khoản 1 Điều 9 — GVCN tiểu học giảm 4 tiết/tuần."
+  - type: textarea
+    id: environment
+    attributes:
+      label: Môi trường
+      placeholder: |
+        - OS / kiến trúc: macOS 15 darwin/amd64
+        - Go version: go1.27.1
+        - Git commit: (git rev-parse --short HEAD)
+    validations:
+      required: true

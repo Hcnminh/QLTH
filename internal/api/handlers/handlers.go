@@ -160,9 +160,9 @@ func (h *APIHandler) AIPedagogicalCopilot(c *gin.Context) {
 func (h *APIHandler) CancelBoardingMeal(c *gin.Context) {
 	type MealCancellationRequest struct {
 		StudentID        uuid.UUID `json:"student_id" binding:"required"`
-		AttendanceDate   string    `json:"attendance_date" binding:"required"` // YYYY-MM-DD
+		AttendanceDate   string    `json:"attendance_date" binding:"required"`   // YYYY-MM-DD
 		CancellationHour int       `json:"cancellation_hour" binding:"required"` // 0-23
-		MealFeePerDay    float64   `json:"meal_fee_per_day"` // Default: 35000 VND
+		MealFeePerDay    float64   `json:"meal_fee_per_day"`                     // Default: 35000 VND
 	}
 
 	var req MealCancellationRequest

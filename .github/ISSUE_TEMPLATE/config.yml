@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Câu hỏi nghiệp vụ & quy định pháp lý
+    url: https://github.com/Hcnminh/QLTH/blob/main/docs/phap_ly/TONG_HOP_QUY_DINH_PHAP_LY_CHI_TIET.md
+    about: Tra cứu điều khoản thông tư/nghị định trước khi đặt câu hỏi về nghiệp vụ đánh giá, định mức tiết dạy hoặc KPI.
+  - name: Tài liệu kiến trúc & đặc tả kỹ thuật
+    url: https://github.com/Hcnminh/QLTH/blob/main/docs/phap_ly/DAC_TA_THIET_KE_CHI_TIET_HE_THONG.md
+    about: Database schema, danh mục API và thuật toán đã được đặc tả tại đây.

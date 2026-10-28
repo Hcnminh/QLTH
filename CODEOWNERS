@@ -1,0 +1,36 @@
+# CODEOWNERS — phân công người duyệt bắt buộc cho từng vùng mã nguồn.
+# Cú pháp: <pattern> <owner>. Owner là tài khoản GitHub có quyền write trên repo.
+# Repo hiện do @Hcnminh sở hữu; thay bằng team tương ứng khi mở rộng nhóm.
+
+# Mặc định: mọi thay đổi đều cần chủ repo duyệt
+*                                   @Hcnminh
+
+# Nghiệp vụ pháp lý cốt lõi — thay đổi ở đây ảnh hưởng trực tiếp kết quả đánh giá
+# theo Thông tư/Nghị định, yêu cầu rà soát kỹ về căn cứ pháp luật.
+/internal/core/kpi/                 @Hcnminh
+/internal/core/teaching/            @Hcnminh
+/internal/core/assessment/          @Hcnminh
+/internal/core/domain/              @Hcnminh
+
+# Lớp transport & phân quyền (RBAC/multi-tenancy)
+/internal/api/                      @Hcnminh
+/cmd/                               @Hcnminh
+
+# Đặc tả API và tài liệu vận hành
+/docs/openapi.yaml                  @Hcnminh
+/docs/runbooks/                     @Hcnminh
+
+# Căn cứ pháp lý — chỉ đọc, thay đổi cần đối chiếu văn bản gốc
+/docs/phap_ly/                      @Hcnminh
+
+# Hạ tầng & cấu hình build
+/Dockerfile                         @Hcnminh
+/docker-compose.yml                 @Hcnminh
+/Makefile                           @Hcnminh
+/services.yaml                      @Hcnminh
+/scripts/                           @Hcnminh
+
+# Cấu hình quản trị repo
+/.github/                           @Hcnminh
+/AGENTS.md                          @Hcnminh
+/README.md                          @Hcnminh
