@@ -11,9 +11,10 @@ Repo này là **backend Go** cho phần mềm Quản lý Trường Tiểu học 
 | Build | `make build` (= `go build -v -o bin/api ./cmd/api`) |
 | Chạy toàn bộ test | `make test` (= `go test -v -count=1 ./...`) |
 | Chạy 1 package test | `go test -v ./internal/core/kpi/...` |
+| QA kiểm thử tương tác (26 ca) | `make qa` (= `./scripts/qa_e2e.sh`) |
 | Coverage (ngưỡng CI ≥ 70%) | `go test -covermode=atomic -coverpkg=./internal/... -coverprofile=cov.out ./... && go tool cover -func=cov.out \| tail -1` |
 | Lint + format check | `make lint` (= `go vet ./...` + `gofmt -l .`) |
-| Chạy server local | `make run` (cổng 8080, biến `PORT` để đổi) |
+| Chạy server local | `make run` (cổng 8098, biến `PORT` để đổi) |
 | Full stack (Postgres + Redis + API) | `make docker-up` / `make docker-down` |
 | Validate + sinh tài liệu API | `make docs` |
 | Kiểm tra AGENTS.md còn đúng | `python3 scripts/validate_agents_md.py` |

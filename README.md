@@ -47,8 +47,9 @@ curl -s http://localhost:8080/health
 | `make deps` | Tải Go modules |
 | `make build` | Biên dịch ra `bin/api` |
 | `make test` | Chạy toàn bộ unit + integration test |
-| `make lint` | Chạy `go vet` và `gofmt` check |
-| `make run` | Chạy API server ở cổng 8080 |
+| `make qa` | Chạy kiểm thử tương tác end-to-end (QA harness 26 ca) |
+| `make lint` | Chạy `go vet`, `gofmt` check và `golangci-lint` |
+| `make run` | Chạy API server ở cổng 8098 (hoặc qua biến `PORT`) |
 | `make docker-up` / `make docker-down` | Bật/tắt full stack qua Docker Compose |
 | `make docs` | Validate OpenAPI spec + sinh `docs/api-reference.md` |
 | `make clean` | Xóa artifacts |

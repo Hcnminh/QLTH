@@ -112,12 +112,8 @@ jobs:
           mkdir -p bin
           go build -v -o bin/api ./cmd/api
 
-      - name: Smoke test binary
-        run: |
-          PORT=8099 ./bin/api &
-          sleep 2
-          curl -sf http://localhost:8099/health | grep -q '"status":"healthy"'
-          kill %1
+      - name: End-to-end interactive QA harness (26 test cases)
+        run: ./scripts/qa_e2e.sh
 
       - name: Build Docker image
         run: docker build -t qlth-api:${{ github.sha }} .

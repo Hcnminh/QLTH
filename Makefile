@@ -1,4 +1,4 @@
-.PHONY: all deps build test run lint fmt-check docs clean docker-up docker-down
+.PHONY: all deps build test qa run lint fmt-check docs clean docker-up docker-down
 
 all: build test
 
@@ -12,8 +12,11 @@ build:
 test:
 	go test -v -count=1 ./...
 
+qa:
+	./scripts/qa_e2e.sh
+
 run:
-	PORT=8080 go run ./cmd/api
+	PORT=$${PORT:-8098} go run ./cmd/api
 
 lint:
 	go vet ./...

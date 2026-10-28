@@ -27,6 +27,10 @@ bin/
 .DS_Store
 Thumbs.db
 
+# Logs & QA test outputs
+logs/
+*.log
+
 # Python cache (scripts/)
 __pycache__/
 *.pyc

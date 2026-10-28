@@ -4,18 +4,18 @@ import "math"
 
 // TeacherWorkloadProfile represents the parameters of a teacher in an academic year
 type TeacherWorkloadProfile struct {
-	TeacherID            string
-	TeacherName          string
-	SchoolType           string // 'PRIMARY', 'ETHNIC_BOARDING_PRIMARY' (PTDTBT), 'SPECIAL_EDUCATION'
-	IsHomeroom           bool   // Giáo viên chủ nhiệm
-	IsHeadSubject        bool   // Tổ trưởng chuyên môn
-	IsDeputyHeadSubject  bool   // Tổ phó chuyên môn
-	HasYoungChild        bool   // Nuôi con nhỏ dưới 12 tháng tuổi
-	CounselingHoursWeek  int    // Tiết kiêm nhiệm tư vấn tâm lý học sinh (3-8 tiết)
-	InclusiveTeachingWk  int    // Số tiết dạy hòa nhập trẻ khuyết tật
-	PreGrade1EthnicHours int    // Số tiết dạy tiếng Việt cho trẻ DTTS trước lớp 1 hè
-	ActualTaughtHours    int    // Tổng số tiết thực tế đã giảng dạy cả năm
-	WeeksInSchoolYear    int    // Số tuần thực dạy (chuẩn là 35 tuần theo Điều 5 TT 05/2025)
+	TeacherID            string `json:"teacher_id"`
+	TeacherName          string `json:"teacher_name"`
+	SchoolType           string `json:"school_type"`             // 'PRIMARY', 'ETHNIC_BOARDING_PRIMARY' (PTDTBT), 'SPECIAL_EDUCATION'
+	IsHomeroom           bool   `json:"is_homeroom"`             // Giáo viên chủ nhiệm
+	IsHeadSubject        bool   `json:"is_head_subject"`         // Tổ trưởng chuyên môn
+	IsDeputyHeadSubject  bool   `json:"is_deputy_head_subject"`  // Tổ phó chuyên môn
+	HasYoungChild        bool   `json:"has_young_child"`         // Nuôi con nhỏ dưới 12 tháng tuổi
+	CounselingHoursWeek  int    `json:"counseling_hours_week"`   // Tiết kiêm nhiệm tư vấn tâm lý học sinh (3-8 tiết)
+	InclusiveTeachingWk  int    `json:"inclusive_teaching_wk"`   // Số tiết dạy hòa nhập trẻ khuyết tật
+	PreGrade1EthnicHours int    `json:"pre_grade1_ethnic_hours"` // Số tiết dạy tiếng Việt cho trẻ DTTS trước lớp 1 hè
+	ActualTaughtHours    int    `json:"actual_taught_hours"`     // Tổng số tiết thực tế đã giảng dạy cả năm
+	WeeksInSchoolYear    int    `json:"weeks_in_school_year"`    // Số tuần thực dạy (chuẩn là 35 tuần theo Điều 5 TT 05/2025)
 }
 
 // WorkloadQuotaCalculationResult stores detailed calculation of teaching quota
