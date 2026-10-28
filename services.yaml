@@ -1,0 +1,14 @@
+commands:
+  install: bash -lc 'cd /Users/dkm/dev/QLTH && go mod download'
+  build: bash -lc 'cd /Users/dkm/dev/QLTH && go build -v -o bin/api ./cmd/api'
+  test: bash -lc 'cd /Users/dkm/dev/QLTH && go test -v -count=1 ./...'
+  typecheck: bash -lc 'cd /Users/dkm/dev/QLTH && go vet ./...'
+  lint: bash -lc 'cd /Users/dkm/dev/QLTH && go vet ./...'
+
+services:
+  api:
+    start: bash -lc 'cd /Users/dkm/dev/QLTH && PORT=8080 go run ./cmd/api'
+    stop: bash -lc 'lsof -ti :8080 | xargs kill -9 2>/dev/null || true'
+    healthcheck: curl -sf http://localhost:8080/health
+    port: 8080
+    depends_on: []
