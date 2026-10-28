@@ -43,7 +43,9 @@ jobs:
           cache: true
 
       - name: Run tests with coverage
-        run: go test -race -count=1 -covermode=atomic -coverprofile=coverage.out ./...
+        # -coverpkg đo coverage xuyên package (handlers được test qua router_test).
+        # Loại trừ cmd/ vì main() chỉ là bootstrap server, verify bằng bước smoke test bên dưới.
+        run: go test -race -count=1 -covermode=atomic -coverpkg=$(go list ./... | grep -v '/cmd/' | paste -sd, -) -coverprofile=coverage.out ./...
 
       - name: Coverage summary
         run: |
