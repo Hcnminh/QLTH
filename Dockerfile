@@ -1,5 +1,6 @@
 # Multi-stage build for Go Core
-FROM golang:1.24-alpine AS builder
+# Image Go phải >= phiên bản trong go.mod (hiện tại: 1.27.1)
+FROM golang:1.27-alpine AS builder
 
 WORKDIR /app
 

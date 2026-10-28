@@ -1,0 +1,25 @@
+# Git
+.git
+.gitignore
+.gitattributes
+
+# Build artifacts
+bin/
+*.test
+*.out
+
+# Docs & legal PDFs — không cần trong runtime image
+docs/
+*.md
+!README.md
+
+# Local env & tooling
+.env
+.env.local
+.env.*.local
+.factory/
+.vscode/
+.idea/
+
+# OS
+.DS_Store
