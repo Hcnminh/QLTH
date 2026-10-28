@@ -19,8 +19,8 @@ const (
 	RankUnsatisfactory ClassificationResult = "KHÔNG HOÀN THÀNH NHIỆM VỤ"
 )
 
-// KPICriteria represents a measurable metric in the KPI tree
-type KPICriteria struct {
+// Criteria represents a measurable metric in the KPI tree
+type Criteria struct {
 	ID          uuid.UUID `json:"id"`
 	Code        string    `json:"code"`
 	Title       string    `json:"title"`
@@ -32,14 +32,14 @@ type KPICriteria struct {
 
 // StaffKPISubmission is the assessment input for a specific teacher/staff
 type StaffKPISubmission struct {
-	StaffID                 uuid.UUID     `json:"staff_id"`
-	StaffName               string        `json:"staff_name"`
-	JobPosition             string        `json:"job_position"`              // 'HOMEROOM_TEACHER', 'SUBJECT_TEACHER', 'PRINCIPAL'
-	AutomatedSystemScore    float64       `json:"automated_system_score"`    // 40%
-	ManagerAssessmentScore  float64       `json:"manager_assessment_score"`  // 30%
-	PeerReviewScore         float64       `json:"peer_review_score"`         // 15%
-	ParentSatisfactionScore float64       `json:"parent_satisfaction_score"` // 15%
-	CriteriaDetails         []KPICriteria `json:"criteria_details"`
+	StaffID                 uuid.UUID  `json:"staff_id"`
+	StaffName               string     `json:"staff_name"`
+	JobPosition             string     `json:"job_position"`              // 'HOMEROOM_TEACHER', 'SUBJECT_TEACHER', 'PRINCIPAL'
+	AutomatedSystemScore    float64    `json:"automated_system_score"`    // 40%
+	ManagerAssessmentScore  float64    `json:"manager_assessment_score"`  // 30%
+	PeerReviewScore         float64    `json:"peer_review_score"`         // 15%
+	ParentSatisfactionScore float64    `json:"parent_satisfaction_score"` // 15%
+	CriteriaDetails         []Criteria `json:"criteria_details"`
 
 	// Legal Constraints & Disciplinary conditions
 	HasDisciplinaryAction   bool `json:"has_disciplinary_action"`    // Bị kỷ luật trong năm (NĐ 48/2023)

@@ -30,6 +30,11 @@ jobs:
       - name: go vet
         run: go vet ./...
 
+      - name: golangci-lint (gocyclo, dupl, unused, revive naming)
+        uses: golangci/golangci-lint-action@v8
+        with:
+          version: latest
+
   test:
     name: Test & Coverage
     runs-on: ubuntu-latest

@@ -1,9 +1,10 @@
 package api
 
 import (
-	"github.com/gin-gonic/gin"
 	"qlth/internal/api/handlers"
 	"qlth/internal/api/middleware"
+
+	"github.com/gin-gonic/gin"
 )
 
 // SetupRouter sets up Gin engine and registers all routes

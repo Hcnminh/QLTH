@@ -19,6 +19,9 @@ lint:
 	go vet ./...
 	@out="$$(gofmt -l . 2>/dev/null)"; \
 	if [ -n "$$out" ]; then echo "gofmt cần format lại:"; echo "$$out"; exit 1; fi
+	@if command -v golangci-lint >/dev/null 2>&1; then golangci-lint run ./...; \
+	elif [ -x "$$HOME/go/bin/golangci-lint" ]; then "$$HOME/go/bin/golangci-lint" run ./...; \
+	else echo "golangci-lint chưa cài — bỏ qua (CI vẫn chạy đầy đủ)"; fi
 
 docs:
 	python3 scripts/validate_openapi.py

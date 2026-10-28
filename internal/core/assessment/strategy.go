@@ -3,6 +3,7 @@ package assessment
 import (
 	"encoding/json"
 	"errors"
+	"math"
 	"time"
 
 	"qlth/internal/core/domain"
@@ -18,8 +19,8 @@ const (
 	RankStudentIncomplete   AnnualRank = "CHƯA HOÀN THÀNH"     // Có môn CHT hoặc kiểm tra < 5
 )
 
-// AssessmentStrategy is the interface for primary evaluation strategies
-type AssessmentStrategy interface {
+// Strategy is the interface for primary evaluation strategies
+type Strategy interface {
 	GetRegulationCode() string
 	ValidateSubjectScore(sub domain.StudentSubjectEvaluation) error
 	EvaluateYearEnd(
@@ -62,6 +63,55 @@ func (s *StrategyTT27Primary) ValidateSubjectScore(sub domain.StudentSubjectEval
 	return nil
 }
 
+// subjectAggregate tổng hợp kết quả các môn học phục vụ xếp loại cuối năm (TT 27/2020 Điều 9)
+type subjectAggregate struct {
+	allHTT       bool
+	anyCHT       bool
+	minExamScore float64 // +Inf nếu không môn nào có điểm số
+}
+
+func aggregateSubjects(subjects []domain.StudentSubjectEvaluation) subjectAggregate {
+	agg := subjectAggregate{allHTT: true, anyCHT: false, minExamScore: math.Inf(1)}
+	for _, sub := range subjects {
+		if sub.AchievementLevel == "CHT" {
+			agg.anyCHT = true
+		}
+		if sub.AchievementLevel != "HTT" {
+			agg.allHTT = false
+		}
+		if sub.ExamScore != nil && *sub.ExamScore < agg.minExamScore {
+			agg.minExamScore = *sub.ExamScore
+		}
+	}
+	return agg
+}
+
+// qualityLevels trả về danh sách mức đánh giá của 5 phẩm chất + 3 năng lực chung (TT 27/2020 Điều 7, 8)
+func qualityLevels(b domain.StudentBehaviorEvaluation) []string {
+	return []string{
+		b.Patriotism, b.Compassion, b.Diligence, b.Honesty, b.Responsibility,
+		b.AutonomySelfLearning, b.CommunicationCooperation, b.ProblemSolvingCreativity,
+	}
+}
+
+func allLevelsEqual(levels []string, level string) bool {
+	for _, l := range levels {
+		if l != level {
+			return false
+		}
+	}
+	return true
+}
+
+func anyLevelEquals(levels []string, level string) bool {
+	for _, l := range levels {
+		if l == level {
+			return true
+		}
+	}
+	return false
+}
+
 func (s *StrategyTT27Primary) EvaluateYearEnd(
 	student domain.Student,
 	subjects []domain.StudentSubjectEvaluation,
@@ -71,60 +121,29 @@ func (s *StrategyTT27Primary) EvaluateYearEnd(
 		return RankStudentIncomplete, "Chưa có dữ liệu môn học", errors.New("no subject evaluations")
 	}
 
-	allSubjectsHTT := true
-	anySubjectCHT := false
-	allExamScoreGe9 := true
-	allExamScoreGe7 := true
-	allExamScoreGe5 := true
+	agg := aggregateSubjects(subjects)
+	levels := qualityLevels(behavior)
 
-	for _, sub := range subjects {
-		if sub.AchievementLevel == "CHT" {
-			anySubjectCHT = true
-		}
-		if sub.AchievementLevel != "HTT" {
-			allSubjectsHTT = false
-		}
-		if sub.ExamScore != nil {
-			if *sub.ExamScore < 9.0 {
-				allExamScoreGe9 = false
-			}
-			if *sub.ExamScore < 7.0 {
-				allExamScoreGe7 = false
-			}
-			if *sub.ExamScore < 5.0 {
-				allExamScoreGe5 = false
-			}
-		}
-	}
+	allQualitiesT := allLevelsEqual(levels, "T")
+	anyLevelC := anyLevelEquals(levels, "C")
 
-	allQualitiesT := behavior.Patriotism == "T" && behavior.Compassion == "T" &&
-		behavior.Diligence == "T" && behavior.Honesty == "T" && behavior.Responsibility == "T"
-
-	allGeneralCompetenciesT := behavior.AutonomySelfLearning == "T" &&
-		behavior.CommunicationCooperation == "T" && behavior.ProblemSolvingCreativity == "T"
-
-	anyQualityOrCompetencyC := behavior.Patriotism == "C" || behavior.Compassion == "C" ||
-		behavior.Diligence == "C" || behavior.Honesty == "C" || behavior.Responsibility == "C" ||
-		behavior.AutonomySelfLearning == "C" || behavior.CommunicationCooperation == "C" ||
-		behavior.ProblemSolvingCreativity == "C"
-
-	// 1. Hoàn thành xuất sắc
-	if allSubjectsHTT && allExamScoreGe9 && allQualitiesT && allGeneralCompetenciesT {
+	switch {
+	// 1. Hoàn thành xuất sắc: tất cả môn HTT, điểm kiểm tra >= 9, phẩm chất & năng lực T
+	case agg.allHTT && agg.minExamScore >= 9.0 && allQualitiesT:
 		return RankStudentExcellent, "Đạt mức Hoàn thành xuất sắc theo Thông tư 27/2020", nil
-	}
 
-	// 2. Hoàn thành tốt
-	if allSubjectsHTT && allExamScoreGe7 && allQualitiesT && allGeneralCompetenciesT {
+	// 2. Hoàn thành tốt: tất cả môn HTT, điểm kiểm tra >= 7, phẩm chất & năng lực T
+	case agg.allHTT && agg.minExamScore >= 7.0 && allQualitiesT:
 		return RankStudentGood, "Đạt mức Hoàn thành tốt theo Thông tư 27/2020", nil
-	}
 
-	// 3. Chưa hoàn thành
-	if anySubjectCHT || !allExamScoreGe5 || anyQualityOrCompetencyC {
+	// 3. Chưa hoàn thành: có môn CHT, hoặc điểm kiểm tra < 5, hoặc có tiêu chí mức C
+	case agg.anyCHT || agg.minExamScore < 5.0 || anyLevelC:
 		return RankStudentIncomplete, "Chưa hoàn thành chương trình lớp học theo Thông tư 27/2020", nil
-	}
 
 	// 4. Hoàn thành
-	return RankStudentSatisfactory, "Đạt mức Hoàn thành chương trình lớp học theo Thông tư 27/2020", nil
+	default:
+		return RankStudentSatisfactory, "Đạt mức Hoàn thành chương trình lớp học theo Thông tư 27/2020", nil
+	}
 }
 
 func (s *StrategyTT27Primary) GenerateTranscriptSnapshot(
@@ -215,12 +234,12 @@ func (s *StrategyTT89Primary) GenerateTranscriptSnapshot(
 // -------------------------------------------------------------
 
 type Registry struct {
-	strategies map[string]AssessmentStrategy
+	strategies map[string]Strategy
 }
 
 func NewRegistry() *Registry {
 	r := &Registry{
-		strategies: make(map[string]AssessmentStrategy),
+		strategies: make(map[string]Strategy),
 	}
 	r.strategies["TT27_2020"] = NewStrategyTT27Primary()
 	r.strategies["TT89_2026"] = NewStrategyTT89Primary()
@@ -228,7 +247,7 @@ func NewRegistry() *Registry {
 }
 
 // ResolveStrategy dynamically resolves the correct strategy according to the legal effective date
-func (r *Registry) ResolveStrategy(evalDate time.Time) AssessmentStrategy {
+func (r *Registry) ResolveStrategy(evalDate time.Time) Strategy {
 	// Legal Effective Date of Circular 89/2026/TT-BGDĐT: December 1st, 2026
 	tt89EffectiveDate := time.Date(2026, time.December, 1, 0, 0, 0, 0, time.Local)
 

@@ -1,0 +1,64 @@
+# golangci-lint configuration for QLTH (EduPrimary-KPI)
+# Docs: https://golangci-lint.run/usage/configuration/
+# Chạy local: golangci-lint run ./...
+version: "2"
+
+run:
+  timeout: 5m
+  tests: true
+
+linters:
+  enable:
+    # --- Cyclomatic complexity (tín hiệu cyclomatic_complexity) ---
+    - gocyclo
+    # --- Dead code detection (tín hiệu dead_code_detection) ---
+    - unused
+    # --- Duplicate code detection (tín hiệu duplicate_code_detection) ---
+    - dupl
+    # --- Naming consistency (tín hiệu naming_consistency) ---
+    - revive
+    # --- Standard correctness ---
+    - errcheck
+    - govet
+    - ineffassign
+    - staticcheck
+  settings:
+    gocyclo:
+      # Ngưỡng phức tạp cyclomatic: hàm vượt quá sẽ bị flag.
+      # Luật nghiệp vụ (KPI, quota) có nhiều nhánh điều kiện hợp lệ — 20 là cân bằng.
+      min-complexity: 20
+    dupl:
+      # Ngưỡng token cho code trùng lặp — test hợp lệ có thể lặp fixture nên đặt vừa phải
+      threshold: 150
+    revive:
+      rules:
+        # Quy tắc đặt tên Go chuẩn (tín hiệu naming_consistency)
+        - name: exported
+          arguments:
+            - checkPrivateReceivers
+        - name: var-naming
+        - name: package-comments
+          disabled: true
+  exclusions:
+    generated: lax
+    presets:
+      - comments
+      - common-false-positives
+      - legacy
+      - std-error-handling
+    rules:
+      # Test files được phép trùng lặp fixture và bỏ qua errcheck
+      - path: _test\.go
+        linters:
+          - dupl
+          - errcheck
+      # Handlers trả lỗi qua gin JSON response — errcheck trên json.Unmarshal trong test-like code
+      - path: internal/api/handlers/handlers.go
+        text: "Error return value of `c.ShouldBindJSON`"
+
+formatters:
+  enable:
+    - gofmt
+    - goimports
+  exclusions:
+    generated: lax

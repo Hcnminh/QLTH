@@ -5,8 +5,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/google/uuid"
 	"qlth/internal/core/domain"
+
+	"github.com/google/uuid"
 )
 
 func TestRegistry_StrategyResolutionByDate(t *testing.T) {

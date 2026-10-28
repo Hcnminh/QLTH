@@ -7,11 +7,12 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/gin-gonic/gin"
-	"github.com/google/uuid"
 	"qlth/internal/core/domain"
 	"qlth/internal/core/kpi"
 	"qlth/internal/core/teaching"
+
+	"github.com/gin-gonic/gin"
+	"github.com/google/uuid"
 )
 
 func init() {

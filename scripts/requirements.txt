@@ -1,0 +1,3 @@
+# Python dependencies cho scripts/ (validate OpenAPI, sinh tài liệu API, validate AGENTS.md)
+# Dùng bởi: make docs, CI job "Validate docs & AGENTS.md", và Dependabot (ecosystem: pip)
+PyYAML>=6.0,<7.0

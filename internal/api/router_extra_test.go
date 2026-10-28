@@ -7,8 +7,9 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/google/uuid"
 	"qlth/internal/core/kpi"
+
+	"github.com/google/uuid"
 )
 
 // BGH gọi batch evaluation hợp lệ → 200 và áp trần 20% xuất sắc

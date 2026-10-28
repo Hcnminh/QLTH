@@ -5,8 +5,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/google/uuid"
 	"qlth/internal/core/domain"
+
+	"github.com/google/uuid"
 )
 
 // ValidateSubjectScore phải từ chối mức đạt ngoài tập HTT/HT/CHT
