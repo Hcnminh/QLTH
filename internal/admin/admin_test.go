@@ -360,3 +360,102 @@ func TestStudentTableDisplayAndConsentStatus(t *testing.T) {
 		t.Errorf("expected filtered student body to contain HS2026001 and Nguyễn Hoàng Nam")
 	}
 }
+
+// VAL-CRUD-003: KPI Evaluations Table Display, 4-Dimension Scores, and Decree 90/2020 20% Cap
+func TestKPIEvaluationTableDisplayAndRankingCap(t *testing.T) {
+	r := setupTestAdmin(t)
+
+	// 1. Authenticate to get session cookie
+	formVals := url.Values{}
+	formVals.Add("username", "admin")
+	formVals.Add("password", "admin")
+
+	loginReq, _ := http.NewRequest(http.MethodPost, "/admin/signin", strings.NewReader(formVals.Encode()))
+	loginReq.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	loginW := httptest.NewRecorder()
+	r.ServeHTTP(loginW, loginReq)
+
+	var sessionCookie *http.Cookie
+	for _, c := range loginW.Result().Cookies() {
+		if c.Name == "go_admin_session" {
+			sessionCookie = c
+			break
+		}
+	}
+	if sessionCookie == nil {
+		t.Fatal("session cookie missing")
+	}
+
+	// 2. GET /admin/info/kpi_evaluations renders KPI evaluations table
+	req, _ := http.NewRequest(http.MethodGet, "/admin/info/kpi_evaluations", nil)
+	req.AddCookie(sessionCookie)
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected status 200 for /admin/info/kpi_evaluations, got %d. Body: %s", w.Code, w.Body.String())
+	}
+
+	body := w.Body.String()
+
+	// Check table columns for weighted dimensions (40/30/15/15), fatal flaws, rank, and 20% cap
+	expectedColumns := []string{"Staff Name", "Final Score", "Final Rank", "Honors Status", "Fatal Flaws", "20% Cap Status"}
+	for _, col := range expectedColumns {
+		if !strings.Contains(body, col) {
+			t.Errorf("expected column '%s' to be present in KPI evaluations table view HTML", col)
+		}
+	}
+
+	// Check seeded KPI records
+	expectedData := []string{"Nguyễn Văn An", "Trần Thị Bình", "Lê Hoàng Cường"}
+	for _, d := range expectedData {
+		if !strings.Contains(body, d) {
+			t.Errorf("expected seed staff '%s' to be present in KPI evaluations table view HTML", d)
+		}
+	}
+
+	// Check rank badges exist
+	if !strings.Contains(body, "rank-badge") {
+		t.Errorf("expected 'rank-badge' class to be present in HTML for official ranks")
+	}
+	if !strings.Contains(body, "Xuất sắc (NĐ 90/2020)") {
+		t.Errorf("expected excellent rank badge 'Xuất sắc (NĐ 90/2020)' in table view HTML")
+	}
+
+	// Check Decree 90/2020 20% cap indication
+	if !strings.Contains(body, "Hạ do trần 20% (NĐ 90/2020)") {
+		t.Errorf("expected 20-percent cap warning indicator 'Hạ do trần 20%% (NĐ 90/2020)' in table view HTML")
+	}
+
+	// 3. GET /admin/info/kpi_evaluations/new renders new evaluation form
+	formReq, _ := http.NewRequest(http.MethodGet, "/admin/info/kpi_evaluations/new", nil)
+	formReq.AddCookie(sessionCookie)
+	formW := httptest.NewRecorder()
+	r.ServeHTTP(formW, formReq)
+
+	if formW.Code != http.StatusOK {
+		t.Fatalf("expected status 200 for /admin/info/kpi_evaluations/new, got %d", formW.Code)
+	}
+
+	formBody := formW.Body.String()
+	for _, expectedFormField := range []string{"staff_name", "final_score", "official_rank", "is_capped_by_20pct", "has_innovative_solution", "has_disciplinary_action"} {
+		if !strings.Contains(formBody, expectedFormField) {
+			t.Errorf("expected field '%s' in new KPI evaluation form HTML", expectedFormField)
+		}
+	}
+
+	// 4. Filter query: ?staff_name=Nguyễn+Văn+An
+	filterReq, _ := http.NewRequest(http.MethodGet, "/admin/info/kpi_evaluations?staff_name=Nguy%E1%BB%85n+V%C4%83n+An", nil)
+	filterReq.AddCookie(sessionCookie)
+	filterW := httptest.NewRecorder()
+	r.ServeHTTP(filterW, filterReq)
+
+	if filterW.Code != http.StatusOK {
+		t.Fatalf("expected status 200 for filtered /admin/info/kpi_evaluations, got %d", filterW.Code)
+	}
+
+	filterBody := filterW.Body.String()
+	if !strings.Contains(filterBody, "Nguyễn Văn An") {
+		t.Errorf("expected filtered KPI body to contain Nguyễn Văn An")
+	}
+}

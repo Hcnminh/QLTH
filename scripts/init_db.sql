@@ -540,4 +540,20 @@ INSERT INTO kpi_evaluations (
     FALSE,
     FALSE,
     'Hoàn thành tốt nhiệm vụ giảng dạy và công tác tổ trưởng'
+),
+(
+    'e0000000-0000-0000-0000-000000000003',
+    'b0000000-0000-0000-0000-000000000003',
+    'Lê Hoàng Cường',
+    'a0000000-0000-0000-0000-000000000001',
+    'Năm học 2026-2027',
+    91.00,
+    90.00,
+    88.00,
+    92.00,
+    90.40,
+    'HOÀN THÀNH TỐT NHIỆM VỤ',
+    TRUE,
+    TRUE,
+    'Đạt 90.40 điểm có SKKN nhưng hạ xuống mức Tốt do khống chế trần 20% theo NĐ 90/2020'
 ) ON CONFLICT (id) DO NOTHING;
