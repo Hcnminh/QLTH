@@ -38,10 +38,12 @@ lint:
 docs:
 	python3 scripts/validate_openapi.py
 	python3 scripts/generate_api_docs.py
+	python3 scripts/validate_doc_refs.py
 
 docs-check:
 	python3 scripts/validate_openapi.py
 	python3 scripts/generate_api_docs.py --check
+	python3 scripts/validate_doc_refs.py
 
 clean:
 	rm -rf bin
