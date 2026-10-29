@@ -182,3 +182,87 @@ func TestAdminRepeatedInit(t *testing.T) {
 		t.Fatalf("expected status 200 on second router, got %d", w.Code)
 	}
 }
+
+// VAL-CRUD-001: Staff & Teaching Quota Table Display and Filtering
+func TestStaffTableDisplayAndFiltering(t *testing.T) {
+	r := setupTestAdmin(t)
+
+	// 1. Authenticate to get session cookie
+	formVals := url.Values{}
+	formVals.Add("username", "admin")
+	formVals.Add("password", "admin")
+
+	loginReq, _ := http.NewRequest(http.MethodPost, "/admin/signin", strings.NewReader(formVals.Encode()))
+	loginReq.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	loginW := httptest.NewRecorder()
+	r.ServeHTTP(loginW, loginReq)
+
+	var sessionCookie *http.Cookie
+	for _, c := range loginW.Result().Cookies() {
+		if c.Name == "go_admin_session" {
+			sessionCookie = c
+			break
+		}
+	}
+	if sessionCookie == nil {
+		t.Fatal("session cookie missing")
+	}
+
+	// 2. GET /admin/info/staffs renders table
+	req, _ := http.NewRequest(http.MethodGet, "/admin/info/staffs", nil)
+	req.AddCookie(sessionCookie)
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected status 200 for /admin/info/staffs, got %d. Body: %s", w.Code, w.Body.String())
+	}
+
+	body := w.Body.String()
+
+	// Check table columns
+	expectedColumns := []string{"Teacher Code", "Full Name", "Homeroom status", "Quota"}
+	for _, col := range expectedColumns {
+		if !strings.Contains(body, col) {
+			t.Errorf("expected column '%s' to be present in table view HTML", col)
+		}
+	}
+
+	// Check seeded teacher data
+	expectedData := []string{"Nguyễn Văn An", "GV001", "Trần Thị Bình", "GV002"}
+	for _, d := range expectedData {
+		if !strings.Contains(body, d) {
+			t.Errorf("expected seed data '%s' to be present in table view HTML", d)
+		}
+	}
+
+	// 3. GET /admin/info/staffs/new renders new teacher form
+	formReq, _ := http.NewRequest(http.MethodGet, "/admin/info/staffs/new", nil)
+	formReq.AddCookie(sessionCookie)
+	formW := httptest.NewRecorder()
+	r.ServeHTTP(formW, formReq)
+
+	if formW.Code != http.StatusOK {
+		t.Fatalf("expected status 200 for /admin/info/staffs/new, got %d", formW.Code)
+	}
+
+	formBody := formW.Body.String()
+	if !strings.Contains(formBody, "employee_code") || !strings.Contains(formBody, "full_name") {
+		t.Errorf("expected employee_code and full_name fields in new teacher form")
+	}
+
+	// 4. Filter query: ?employee_code=GV001
+	filterReq, _ := http.NewRequest(http.MethodGet, "/admin/info/staffs?employee_code=GV001", nil)
+	filterReq.AddCookie(sessionCookie)
+	filterW := httptest.NewRecorder()
+	r.ServeHTTP(filterW, filterReq)
+
+	if filterW.Code != http.StatusOK {
+		t.Fatalf("expected status 200 for filtered /admin/info/staffs, got %d", filterW.Code)
+	}
+
+	filterBody := filterW.Body.String()
+	if !strings.Contains(filterBody, "GV001") {
+		t.Errorf("expected filtered body to contain GV001")
+	}
+}

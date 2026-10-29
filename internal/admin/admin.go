@@ -37,6 +37,9 @@ func InitAdmin(r *gin.Engine) (*engine.Engine, error) {
 	defer adminInitLock.Unlock()
 
 	if adminEngine != nil {
+		if len(tables.Generators) > 0 {
+			adminEngine.AdminPlugin().AddGenerators(tables.Generators)
+		}
 		// Already initialized globally; bind routes to the new gin router instance
 		if err := adminEngine.Adapter.Use(r, adminEngine.PluginList); err != nil {
 			return adminEngine, err
