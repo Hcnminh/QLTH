@@ -459,3 +459,189 @@ func TestKPIEvaluationTableDisplayAndRankingCap(t *testing.T) {
 		t.Errorf("expected filtered KPI body to contain Nguyễn Văn An")
 	}
 }
+
+// VAL-DOGFOOD-006: GoAdmin All Subsystems Sidebar Menu & Table Generators
+func TestAllSubsystemsTableDisplayFilteringAndDetails(t *testing.T) {
+	r := setupTestAdmin(t)
+
+	// 1. Authenticate to get session cookie
+	formVals := url.Values{}
+	formVals.Add("username", "admin")
+	formVals.Add("password", "admin")
+
+	loginReq, _ := http.NewRequest(http.MethodPost, "/admin/signin", strings.NewReader(formVals.Encode()))
+	loginReq.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	loginW := httptest.NewRecorder()
+	r.ServeHTTP(loginW, loginReq)
+
+	var sessionCookie *http.Cookie
+	for _, c := range loginW.Result().Cookies() {
+		if c.Name == "go_admin_session" {
+			sessionCookie = c
+			break
+		}
+	}
+	if sessionCookie == nil {
+		t.Fatal("session cookie missing")
+	}
+
+	// 2. Check that dashboard sidebar exposes all subsystem URIs
+	dashReq, _ := http.NewRequest(http.MethodGet, "/admin", nil)
+	dashReq.AddCookie(sessionCookie)
+	dashW := httptest.NewRecorder()
+	r.ServeHTTP(dashW, dashReq)
+
+	if dashW.Code != http.StatusOK {
+		t.Fatalf("expected status 200 for /admin, got %d", dashW.Code)
+	}
+
+	dashBody := dashW.Body.String()
+	expectedSubsystemUris := []string{
+		"/admin/info/staffs",
+		"/admin/info/classes",
+		"/admin/info/students",
+		"/admin/info/lesson_plans",
+		"/admin/info/subjects",
+		"/admin/info/student_subject_evaluations",
+		"/admin/info/student_behavior_evaluations",
+		"/admin/info/academic_transcripts_snapshots",
+		"/admin/info/boarding_menus",
+		"/admin/info/student_health_records",
+		"/admin/info/kpi_evaluations",
+	}
+
+	for _, uri := range expectedSubsystemUris {
+		if !strings.Contains(dashBody, uri) {
+			t.Errorf("expected sidebar menu to contain URI '%s'", uri)
+		}
+	}
+
+	// 3. Test Cases for each subsystem table: List view, Filter, Detail inspection
+	tablesToTest := []struct {
+		name             string
+		path             string
+		expectedCols     []string
+		expectedData     []string
+		filterQuery      string
+		expectedFiltered string
+	}{
+		{
+			name:             "Classes",
+			path:             "/admin/info/classes",
+			expectedCols:     []string{"Tên Lớp", "Khối Lớp", "Phòng học", "Sĩ số"},
+			expectedData:     []string{"1A1", "5A1"},
+			filterQuery:      "?name=1A1",
+			expectedFiltered: "1A1",
+		},
+		{
+			name:             "Subjects",
+			path:             "/admin/info/subjects",
+			expectedCols:     []string{"Mã Môn", "Tên Môn học", "Hình thức Đánh giá"},
+			expectedData:     []string{"TOAN", "Toán", "TIENG_VIET"},
+			filterQuery:      "?id=TOAN",
+			expectedFiltered: "Toán",
+		},
+		{
+			name:             "Student Subject Evaluations",
+			path:             "/admin/info/student_subject_evaluations",
+			expectedCols:     []string{"Môn học", "Học kỳ", "Mức Đạt", "Điểm KT"},
+			expectedData:     []string{"HTT"},
+			filterQuery:      "?subject_id=TOAN",
+			expectedFiltered: "HTT",
+		},
+		{
+			name:             "Student Behavior Evaluations",
+			path:             "/admin/info/student_behavior_evaluations",
+			expectedCols:     []string{"Yêu nước", "Nhân ái", "Chăm chỉ", "Trung thực", "Trách nhiệm"},
+			expectedData:     []string{"T (Tốt)"},
+			filterQuery:      "?term_id=2026-2027-HK1",
+			expectedFiltered: "T (Tốt)",
+		},
+		{
+			name:             "Lesson Plans CV 2345",
+			path:             "/admin/info/lesson_plans",
+			expectedCols:     []string{"Tên Bài dạy", "Môn học", "Khối", "Tuần", "Trạng thái Duyệt"},
+			expectedData:     []string{"CV 2345", "Hình hộp chữ nhật"},
+			filterQuery:      "?subject_id=TOAN",
+			expectedFiltered: "CV 2345",
+		},
+		{
+			name:             "Academic Transcripts Snapshots",
+			path:             "/admin/info/academic_transcripts_snapshots",
+			expectedCols:     []string{"Năm học", "Khối Lớp", "Thông tư Áp dụng", "Khen thưởng Năm học", "Khóa Bất biến"},
+			expectedData:     []string{"Học sinh Xuất sắc", "Được lên lớp"},
+			filterQuery:      "?academic_year_id=2026-2027",
+			expectedFiltered: "Học sinh Xuất sắc",
+		},
+		{
+			name:             "Boarding Menus",
+			path:             "/admin/info/boarding_menus",
+			expectedCols:     []string{"Ngày thực đơn", "Bữa ăn", "Năng lượng (Kcal)", "Lưu mẫu 24h"},
+			expectedData:     []string{"Bữa trưa", "Kcal"},
+			filterQuery:      "?meal_type=LUNCH",
+			expectedFiltered: "Bữa trưa",
+		},
+		{
+			name:             "Student Health Records",
+			path:             "/admin/info/student_health_records",
+			expectedCols:     []string{"Student ID", "Ngày khám", "Chiều cao", "Cân nặng", "BMI"},
+			expectedData:     []string{"Bình thường"},
+			filterQuery:      "?bmi_category=B%C3%ACnh+th%C6%B0%E1%BB%9Dng",
+			expectedFiltered: "Bình thường",
+		},
+	}
+
+	for _, tt := range tablesToTest {
+		t.Run(tt.name, func(t *testing.T) {
+			// A. Check List View
+			req, _ := http.NewRequest(http.MethodGet, tt.path, nil)
+			req.AddCookie(sessionCookie)
+			w := httptest.NewRecorder()
+			r.ServeHTTP(w, req)
+
+			if w.Code != http.StatusOK {
+				t.Fatalf("expected status 200 for %s, got %d", tt.path, w.Code)
+			}
+
+			body := w.Body.String()
+			for _, col := range tt.expectedCols {
+				if !strings.Contains(body, col) {
+					t.Errorf("[%s] expected column '%s' in table HTML", tt.name, col)
+				}
+			}
+
+			for _, data := range tt.expectedData {
+				if !strings.Contains(body, data) {
+					t.Errorf("[%s] expected data snippet '%s' in table HTML", tt.name, data)
+				}
+			}
+
+			// B. Check Filter
+			if tt.filterQuery != "" {
+				filterReq, _ := http.NewRequest(http.MethodGet, tt.path+tt.filterQuery, nil)
+				filterReq.AddCookie(sessionCookie)
+				filterW := httptest.NewRecorder()
+				r.ServeHTTP(filterW, filterReq)
+
+				if filterW.Code != http.StatusOK {
+					t.Fatalf("[%s] expected status 200 for filter %s, got %d", tt.name, tt.filterQuery, filterW.Code)
+				}
+
+				filterBody := filterW.Body.String()
+				if !strings.Contains(filterBody, tt.expectedFiltered) {
+					t.Errorf("[%s] expected filtered response to contain '%s'", tt.name, tt.expectedFiltered)
+				}
+			}
+
+			// C. Check New Form View
+			newReq, _ := http.NewRequest(http.MethodGet, tt.path+"/new", nil)
+			newReq.AddCookie(sessionCookie)
+			newW := httptest.NewRecorder()
+			r.ServeHTTP(newW, newReq)
+
+			if newW.Code != http.StatusOK {
+				t.Fatalf("[%s] expected status 200 for %s/new, got %d", tt.name, tt.path, newW.Code)
+			}
+		})
+	}
+}

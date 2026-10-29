@@ -83,6 +83,27 @@ func GetStudentHealthRecordTable(ctx *context.Context) (healthTable table.Table)
 	info.AddField("Nha học đường", "dental_condition", db.Varchar)
 	info.AddField("Bệnh mãn tính / Dị ứng", "chronic_conditions", db.Text)
 
+	// ==========================================
+	// Detail Panel (View Record)
+	// ==========================================
+	detail := healthTable.GetDetail()
+	detail.SetTable("student_health_records").
+		SetTitle("Chi tiết Hồ sơ Sức khỏe Học sinh").
+		SetDescription("Chi tiết chỉ số nhân trắc học BMI, thị lực học đường, nha khoa và tiền sử bệnh lý")
+
+	detail.AddField("ID", "id", db.UUID)
+	detail.AddField("Mã Học sinh (student_id)", "student_id", db.UUID)
+	detail.AddField("Ngày khám", "checkup_date", db.Date)
+	detail.AddField("Chiều cao (cm)", "height_cm", db.Numeric)
+	detail.AddField("Cân nặng (kg)", "weight_kg", db.Numeric)
+	detail.AddField("Chỉ số BMI", "bmi", db.Numeric)
+	detail.AddField("Phân loại thể trạng BMI", "bmi_category", db.Varchar).FieldDisplay(formatBMICategory)
+	detail.AddField("Thị lực mắt trái", "left_eye_vision", db.Varchar)
+	detail.AddField("Thị lực mắt phải", "right_eye_vision", db.Varchar)
+	detail.AddField("Nha học đường", "dental_condition", db.Varchar)
+	detail.AddField("Bệnh mãn tính / Dị ứng", "chronic_conditions", db.Text)
+	detail.AddField("Thời điểm cập nhật", "updated_at", db.Timestamptz)
+
 	formList := healthTable.GetForm()
 	formList.SetTable("student_health_records").SetTitle("Hồ sơ Sức khỏe").SetDescription("Cập nhật thông tin khám sức khỏe học sinh")
 	formList.AddField("ID", "id", db.UUID, form.Text).FieldNotAllowEdit()

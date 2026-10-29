@@ -101,6 +101,26 @@ func GetBoardingMenuTable(ctx *context.Context) (menuTable table.Table) {
 			{Value: "false", Text: "Chưa lưu mẫu"},
 		})
 
+	// ==========================================
+	// Detail Panel (View Record)
+	// ==========================================
+	detail := menuTable.GetDetail()
+	detail.SetTable("boarding_menus").
+		SetTitle("Chi tiết Thực đơn Bán trú").
+		SetDescription("Chi tiết năng lượng, tỷ lệ dinh dưỡng P:L:G và thông tin lưu mẫu an toàn thực phẩm 24h")
+
+	detail.AddField("ID", "id", db.UUID)
+	detail.AddField("Ngày thực đơn", "menu_date", db.Date)
+	detail.AddField("Bữa ăn", "meal_type", db.Varchar).FieldDisplay(formatMealType)
+	detail.AddField("Tổng năng lượng (Kcal)", "total_kcal", db.Numeric)
+	detail.AddField("Tỷ lệ Protein (%)", "protein_percent", db.Numeric)
+	detail.AddField("Tỷ lệ Lipid (%)", "lipid_percent", db.Numeric)
+	detail.AddField("Tỷ lệ Glucid (%)", "glucid_percent", db.Numeric)
+	detail.AddField("Xác nhận lưu mẫu 24h", "sample_retention_verified", db.Bool).FieldDisplay(formatSampleRetention)
+	detail.AddField("Người lưu mẫu (sample_keeper_id)", "sample_keeper_id", db.UUID)
+	detail.AddField("Mã Trường (school_id)", "school_id", db.UUID)
+	detail.AddField("Thời điểm tạo", "created_at", db.Timestamptz)
+
 	formList := menuTable.GetForm()
 	formList.SetTable("boarding_menus").SetTitle("Thực đơn Bán trú").SetDescription("Lập thực đơn và kiểm soát an toàn thực phẩm")
 	formList.AddField("ID", "id", db.UUID, form.Text).FieldNotAllowEdit()
