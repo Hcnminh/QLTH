@@ -152,15 +152,17 @@ Bộ ảnh chụp trực quan độ phân giải cao được lưu trữ tại t
 | **Thực đơn Bán trú Dinh dưỡng** | [`12_boarding_nutrition_menu.png`](docs/screenshots/12_boarding_nutrition_menu.png) | Cân bằng Kcal/P:L:G Viện Dinh Dưỡng và lưu mẫu 24h QĐ 1246/QĐ-BYT |
 | **Hồ sơ Sức khỏe & BMI** | [`13_student_health_bmi.png`](docs/screenshots/13_student_health_bmi.png) | Theo dõi BMI, thị lực học đường, nha khoa và nhật ký y tế |
 
-## Tài liệu dự án
+## Tài liệu dự án & Ấn phẩm Bàn giao
 
-| Tài liệu | Nội dung |
-|---|---|
-| [`DE_XUAT_CHUC_NANG_QLTH_KPI.md`](DE_XUAT_CHUC_NANG_QLTH_KPI.md) | Đề xuất chức năng, căn cứ pháp lý, KPI theo vị trí việc làm |
-| [`KIEN_TRUC_CORE_GO_VA_ADMIN.md`](KIEN_TRUC_CORE_GO_VA_ADMIN.md) | Kiến trúc Go core, GoAdmin, tái sử dụng đa cấp học |
-| [`KIEN_TRUC_THICH_UNG_THAY_DOI_QUY_DINH.md`](KIEN_TRUC_THICH_UNG_THAY_DOI_QUY_DINH.md) | Temporal Policy & Strategy Versioning khi luật thay đổi |
-| [`docs/phap_ly/DAC_TA_THIET_KE_CHI_TIET_HE_THONG.md`](docs/phap_ly/DAC_TA_THIET_KE_CHI_TIET_HE_THONG.md) | Database schema, API endpoints, thuật toán |
-| [`docs/phap_ly/`](docs/phap_ly/) | Toàn văn PDF các thông tư, nghị định làm căn cứ |
+| Tài liệu / Ấn phẩm | Định dạng | Nội dung & Đối tượng sử dụng |
+|---|---|---|
+| **Brochure Giới thiệu Sản phẩm** | [`docs/brochure-qlth-kpi.pdf`](docs/brochure-qlth-kpi.pdf) / [`.docx`](docs/brochure-qlth-kpi.docx) | Bản in & giới thiệu tổng quan dành cho Ban Giám Hiệu, Phòng/Sở GD&ĐT: 5 đột phá pháp lý, so sánh đối thủ, phân tích ROI |
+| **Hướng dẫn Sử dụng Toàn diện** | [`docs/huong-dan-su-dung.md`](docs/huong-dan-su-dung.md) / [`.pdf`](docs/huong-dan-su-dung.pdf) | Cẩm nang vận hành chi tiết step-by-step cho 7 vai trò (BGH, GVCN, GVBM, Kế toán, Y tế, Văn thư, Phụ huynh) kèm ảnh chụp giao diện |
+| [`DE_XUAT_CHUC_NANG_QLTH_KPI.md`](DE_XUAT_CHUC_NANG_QLTH_KPI.md) | Markdown | Đề xuất chức năng, căn cứ pháp lý, KPI theo vị trí việc làm |
+| [`KIEN_TRUC_CORE_GO_VA_ADMIN.md`](KIEN_TRUC_CORE_GO_VA_ADMIN.md) | Markdown | Kiến trúc Go core, GoAdmin, tái sử dụng đa cấp học |
+| [`KIEN_TRUC_THICH_UNG_THAY_DOI_QUY_DINH.md`](KIEN_TRUC_THICH_UNG_THAY_DOI_QUY_DINH.md) | Markdown | Temporal Policy & Strategy Versioning khi luật thay đổi |
+| [`docs/phap_ly/DAC_TA_THIET_KE_CHI_TIET_HE_THONG.md`](docs/phap_ly/DAC_TA_THIET_KE_CHI_TIET_HE_THONG.md) | Markdown | Database schema 16 bảng, API endpoints, thuật toán |
+| [`docs/phap_ly/`](docs/phap_ly/) | PDF | Toàn văn PDF các thông tư, nghị định làm căn cứ |
 
 ## Đóng góp
 
