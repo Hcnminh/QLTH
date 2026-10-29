@@ -226,7 +226,39 @@ grep -q '"has_digital_consent":true' "$LOG_DIR/last-response.json" \
   && log_case "student-onboard-consent-persisted" 0 0 "(consent được ghi nhận)" \
   || log_case "student-onboard-consent-persisted" 0 1 "consent không xuất hiện trong response"
 
-# --- 8. SUPER_ADMIN bypass RBAC ---
+# --- 8. Đánh giá học sinh & Học bạ số (TT 27/2020 & TT 89/2026 Strategy Resolution) ---
+# Đánh giá môn học thành công
+http_case "eval-subject-score-success" POST "/api/v1/evaluations/subject-scores" \
+  '{"student_id":"c0000000-0000-0000-0000-000000000001","term_id":"2026-2027-HK1","subject_id":"TOAN","achievement_level":"HTT","exam_score":10.0,"teacher_comment":"Hoàn thành xuất sắc môn Toán"}' \
+  200 "GVBM"
+
+# Đánh giá môn học sai mức đạt -> 400
+http_case "eval-subject-score-invalid" POST "/api/v1/evaluations/subject-scores" \
+  '{"student_id":"c0000000-0000-0000-0000-000000000001","term_id":"2026-2027-HK1","subject_id":"TOAN","achievement_level":"GIOI"}' \
+  400 "GVBM"
+
+# Đánh giá phẩm chất và năng lực (5 phẩm chất, 10 năng lực)
+http_case "eval-behavior-success" POST "/api/v1/evaluations/behaviors" \
+  '{"student_id":"c0000000-0000-0000-0000-000000000001","term_id":"2026-2027-HK1","patriotism":"T","compassion":"T","diligence":"T","honesty":"T","responsibility":"T","qualities_comment":"Chăm ngoan","autonomy_and_self_learning":"T","communication_and_collaboration":"T","problem_solving_and_creativity":"T","language_competence":"T","mathematical_competence":"T","scientific_competence":"T","technological_competence":"T","computer_competence":"T","aesthetic_competence":"T","physical_competence":"T"}' \
+  200 "GVCN"
+
+# Xuất snapshot học bạ trước 01/12/2026 -> phân giải TT27_2020
+http_case "transcript-generate-tt27" POST "/api/v1/transcripts/generate" \
+  '{"student_id":"c0000000-0000-0000-0000-000000000001","academic_year_id":"2026-2027","grade_level":5,"evaluation_date":"2026-10-25"}' \
+  200 "BGH"
+grep -q '"regulation_applied":"TT27_2020"' "$LOG_DIR/last-response.json" \
+  && log_case "transcript-tt27-resolved" 0 0 "(phân giải đúng TT 27/2020 trước 01/12/2026)" \
+  || log_case "transcript-tt27-resolved" 0 1 "không phân giải TT 27/2020"
+
+# Xuất snapshot học bạ từ 01/12/2026 trở đi -> phân giải TT89_2026
+http_case "transcript-generate-tt89" POST "/api/v1/transcripts/generate" \
+  '{"student_id":"c0000000-0000-0000-0000-000000000001","academic_year_id":"2026-2027","grade_level":5,"evaluation_date":"2026-12-05"}' \
+  200 "BGH"
+grep -q '"regulation_applied":"TT89_2026"' "$LOG_DIR/last-response.json" \
+  && log_case "transcript-tt89-resolved" 0 0 "(phân giải đúng TT 89/2026 từ 01/12/2026)" \
+  || log_case "transcript-tt89-resolved" 0 1 "không phân giải TT 89/2026"
+
+# --- 9. SUPER_ADMIN bypass RBAC ---
 http_case "super-admin-bypass" POST "/api/v1/kpi/evaluate-individual" \
   '{"staff_id":"55555555-5555-5555-5555-555555555555","staff_name":"Admin test","automated_system_score":80,"manager_assessment_score":80,"peer_review_score":80,"parent_satisfaction_score":80}' \
   200 "SUPER_ADMIN"

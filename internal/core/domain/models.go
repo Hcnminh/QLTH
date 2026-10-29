@@ -1,6 +1,7 @@
 package domain
 
 import (
+	"encoding/json"
 	"time"
 
 	"github.com/google/uuid"
@@ -160,11 +161,12 @@ type StudentBehaviorEvaluation struct {
 	TeacherID uuid.UUID `json:"teacher_id"`
 
 	// 5 Qualities: 'T' (Tốt), 'D' (Đạt), 'C' (Cần cố gắng)
-	Patriotism     string `json:"patriotism"`
-	Compassion     string `json:"compassion"`
-	Diligence      string `json:"diligence"`
-	Honesty        string `json:"honesty"`
-	Responsibility string `json:"responsibility"`
+	Patriotism       string `json:"patriotism"`
+	Compassion       string `json:"compassion"`
+	Diligence        string `json:"diligence"`
+	Honesty          string `json:"honesty"`
+	Responsibility   string `json:"responsibility"`
+	QualitiesComment string `json:"qualities_comment,omitempty"`
 
 	// 3 General Competencies
 	AutonomySelfLearning     string `json:"autonomy_self_learning"`
@@ -180,8 +182,57 @@ type StudentBehaviorEvaluation struct {
 	AestheticCompetence     string `json:"aesthetic_competence"`
 	PhysicalCompetence      string `json:"physical_competence"`
 
-	GeneralComment string    `json:"general_comment"`
-	UpdatedAt      time.Time `json:"updated_at"`
+	CompetenciesComment string    `json:"competencies_comment,omitempty"`
+	GeneralComment      string    `json:"general_comment,omitempty"`
+	UpdatedAt           time.Time `json:"updated_at"`
+}
+
+// UnmarshalJSON supports alternative column/JSON naming conventions for behaviors
+func (b *StudentBehaviorEvaluation) UnmarshalJSON(data []byte) error {
+	type Alias StudentBehaviorEvaluation
+	aux := &struct {
+		EvaluatorID                   uuid.UUID `json:"evaluator_id"`
+		AutonomyAndSelfLearning       string    `json:"autonomy_and_self_learning"`
+		CommunicationAndCollaboration string    `json:"communication_and_collaboration"`
+		ProblemSolvingAndCreativity   string    `json:"problem_solving_and_creativity"`
+		*Alias
+	}{
+		Alias: (*Alias)(b),
+	}
+	if err := json.Unmarshal(data, &aux); err != nil {
+		return err
+	}
+	if aux.EvaluatorID != uuid.Nil && b.TeacherID == uuid.Nil {
+		b.TeacherID = aux.EvaluatorID
+	}
+	if aux.AutonomyAndSelfLearning != "" && b.AutonomySelfLearning == "" {
+		b.AutonomySelfLearning = aux.AutonomyAndSelfLearning
+	}
+	if aux.CommunicationAndCollaboration != "" && b.CommunicationCooperation == "" {
+		b.CommunicationCooperation = aux.CommunicationAndCollaboration
+	}
+	if aux.ProblemSolvingAndCreativity != "" && b.ProblemSolvingCreativity == "" {
+		b.ProblemSolvingCreativity = aux.ProblemSolvingAndCreativity
+	}
+	return nil
+}
+
+// AcademicTranscriptSnapshot represents an immutable digital transcript snapshot (Circular 27/2020 & 89/2026)
+type AcademicTranscriptSnapshot struct {
+	ID                 uuid.UUID       `json:"id"`
+	StudentID          uuid.UUID       `json:"student_id"`
+	AcademicYearID     string          `json:"academic_year_id"`
+	GradeLevel         int             `json:"grade_level"`
+	RegulationApplied  string          `json:"regulation_applied"` // 'TT27_2020' or 'TT89_2026'
+	AnnualReward       string          `json:"annual_reward"`      // 'Học sinh Xuất sắc', 'Học sinh Tiêu biểu'...
+	PromotionStatus    string          `json:"promotion_status"`   // 'PROMOTED', 'RETAINED'
+	SnapshotData       json.RawMessage `json:"snapshot_data"`
+	TeacherSignature   string          `json:"teacher_signature,omitempty"`
+	TeacherSignedAt    *time.Time      `json:"teacher_signed_at,omitempty"`
+	PrincipalSignature string          `json:"principal_signature,omitempty"`
+	PrincipalSignedAt  *time.Time      `json:"principal_signed_at,omitempty"`
+	TimestampToken     string          `json:"timestamp_token,omitempty"`
+	IsLocked           bool            `json:"is_locked"`
 }
 
 // BoardingMenu represents a daily menu with nutritional facts

@@ -60,6 +60,24 @@ func SetupRouter() *gin.Engine {
 			middleware.RequireRole("BGH", "VAN_THU"),
 			h.StudentOnboarding,
 		)
+
+		// Student Subject Evaluations (Circular 27/2020 & 89/2026)
+		v1.POST("/evaluations/subject-scores",
+			middleware.RequireRole("BGH", "GVCN", "GVBM"),
+			h.RecordSubjectScore,
+		)
+
+		// Student Behavior Evaluations (Circular 27/2020 & 89/2026)
+		v1.POST("/evaluations/behaviors",
+			middleware.RequireRole("BGH", "GVCN"),
+			h.RecordBehaviorEvaluation,
+		)
+
+		// Academic Transcripts & Snapshot Generation (Circular 27/2020 & 89/2026)
+		v1.POST("/transcripts/generate",
+			middleware.RequireRole("BGH", "GVCN"),
+			h.GenerateTranscript,
+		)
 	}
 
 	return r

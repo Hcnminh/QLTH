@@ -41,10 +41,13 @@ Vai trò hợp lệ: `BGH`, `TO_TRUONG`, `GVCN`, `GVBM`, `KE_TOAN`, `VAN_THU`, `
 | `GET` | [`/health`](#gethealth) | Health check |
 | `POST` | [`/api/v1/boarding/cancel-meal`](#cancelboardingmeal) | Báo hủy suất ăn bán trú và xác định hoàn tiền |
 | `POST` | [`/api/v1/evaluations/ai-copilot`](#aipedagogicalcopilot) | Trợ lý sư phạm gợi ý nhận xét học sinh |
+| `POST` | [`/api/v1/evaluations/behaviors`](#recordbehaviorevaluation) | Đánh giá phẩm chất và năng lực học sinh |
+| `POST` | [`/api/v1/evaluations/subject-scores`](#recordsubjectscore) | Nhập đánh giá kết quả học tập môn học |
 | `POST` | [`/api/v1/kpi/evaluate-individual`](#evaluateindividualkpi) | Đánh giá KPI 360 độ cho một cán bộ/giáo viên |
 | `POST` | [`/api/v1/kpi/evaluate-school-batch`](#evaluateschoolbatchkpi) | Xếp loại KPI toàn trường kèm trần 20% xuất sắc |
 | `POST` | [`/api/v1/students/onboard`](#onboardstudent) | Tiếp nhận hồ sơ học sinh (tuyển sinh đầu cấp) |
 | `POST` | [`/api/v1/teaching/calculate-quota`](#calculateteachingquota) | Tính định mức tiết dạy và số tiết thừa giờ |
+| `POST` | [`/api/v1/transcripts/generate`](#generatetranscriptsnapshot) | Xuất snapshot học bạ số bất biến kèm giải quyết quy định TT 27 vs TT 89 |
 
 ## system
 
@@ -221,7 +224,7 @@ Mảng các phần tử kiểu `object`.
 
 ## evaluations
 
-Trợ lý sư phạm gợi ý nhận xét học sinh (TT 27/2020, TT 89/2026)
+Đánh giá học sinh và trợ lý sư phạm (TT 27/2020, TT 89/2026)
 
 ### `POST /api/v1/evaluations/ai-copilot`
 
@@ -255,6 +258,148 @@ Role được phép: `BGH`, `GVCN`, `GVBM`, `SUPER_ADMIN`.
 | Mã | Mô tả |
 |---|---|
 | `200` | Sinh gợi ý thành công |
+| `400` | Dữ liệu đầu vào không hợp lệ |
+| `401` | Thiếu header X-School-ID |
+| `403` | Role không được phép truy cập endpoint này |
+
+---
+
+### `POST /api/v1/evaluations/subject-scores`
+
+<a id="recordsubjectscore"></a>
+
+**Nhập đánh giá kết quả học tập môn học**
+
+Đánh giá thường xuyên và định kỳ môn học theo **Thông tư 27/2020** hoặc **Thông tư 89/2026**.
+Mức đạt bắt buộc: `HTT`, `HT`, `CHT`. Điểm kiểm tra định kỳ từ 1.0 đến 10.0 (chỉ với môn có điểm số).
+
+Role được phép: `BGH`, `GVCN`, `GVBM`, `SUPER_ADMIN`.
+
+| Tên | Vị trí | Kiểu | Bắt buộc | Mô tả |
+|---|---|---|---|---|
+| `X-School-ID` | header | string | Có | UUID của trường (multi-tenancy). Thiếu header này trả 401. |
+| `X-User-Role` | header | string | Có | Vai trò người gọi. `SUPER_ADMIN` bypass mọi kiểm tra role. Giá trị: `BGH`, `TO_TRUONG`, `GVCN`, `GVBM`, `KE_TOAN`, `VAN_THU`, `PHHS`, `SUPER_ADMIN`. |
+
+### Request body
+
+| Trường | Kiểu | Bắt buộc | Mô tả |
+|---|---|---|---|
+| `student_id` | string (uuid) | Có |  |
+| `term_id` | string | Có |  |
+| `subject_id` | string | Có |  |
+| `teacher_id` | string (uuid) | Không |  |
+| `achievement_level` | string | Có |  Giá trị: `HTT`, `HT`, `CHT`. |
+| `exam_score` | number (float) | Không |  |
+| `teacher_comment` | string | Không |  |
+| `ai_suggested_comment` | string | Không |  |
+| `is_ai_assisted` | boolean | Không |  |
+| `is_computer_based_test` | boolean | Không |  |
+| `is_centralized_exam` | boolean | Không |  |
+| `evaluation_date` | string | Không |  |
+
+### Responses
+
+| Mã | Mô tả |
+|---|---|
+| `200` | Ghi nhận đánh giá thành công |
+| `400` | Dữ liệu đầu vào không hợp lệ |
+| `401` | Thiếu header X-School-ID |
+| `403` | Role không được phép truy cập endpoint này |
+
+---
+
+### `POST /api/v1/evaluations/behaviors`
+
+<a id="recordbehaviorevaluation"></a>
+
+**Đánh giá phẩm chất và năng lực học sinh**
+
+Đánh giá 5 phẩm chất chủ yếu (Yêu nước, Nhân ái, Chăm chỉ, Trung thực, Trách nhiệm)
+và 10 năng lực (3 năng lực chung + 7 năng lực đặc thù) theo **Thông tư 27/2020** và **Thông tư 89/2026**.
+Mức đánh giá: `T` (Tốt), `D` (Đạt), `C` (Cần cố gắng).
+
+Role được phép: `BGH`, `GVCN`, `SUPER_ADMIN`.
+
+| Tên | Vị trí | Kiểu | Bắt buộc | Mô tả |
+|---|---|---|---|---|
+| `X-School-ID` | header | string | Có | UUID của trường (multi-tenancy). Thiếu header này trả 401. |
+| `X-User-Role` | header | string | Có | Vai trò người gọi. `SUPER_ADMIN` bypass mọi kiểm tra role. Giá trị: `BGH`, `TO_TRUONG`, `GVCN`, `GVBM`, `KE_TOAN`, `VAN_THU`, `PHHS`, `SUPER_ADMIN`. |
+
+### Request body
+
+| Trường | Kiểu | Bắt buộc | Mô tả |
+|---|---|---|---|
+| `student_id` | string (uuid) | Có |  |
+| `term_id` | string | Có |  |
+| `evaluator_id` | string (uuid) | Không |  |
+| `patriotism` | string | Có |  Giá trị: `T`, `D`, `C`. |
+| `compassion` | string | Có |  Giá trị: `T`, `D`, `C`. |
+| `diligence` | string | Có |  Giá trị: `T`, `D`, `C`. |
+| `honesty` | string | Có |  Giá trị: `T`, `D`, `C`. |
+| `responsibility` | string | Có |  Giá trị: `T`, `D`, `C`. |
+| `qualities_comment` | string | Không |  |
+| `autonomy_and_self_learning` | string | Không |  Giá trị: `T`, `D`, `C`. |
+| `communication_and_collaboration` | string | Không |  Giá trị: `T`, `D`, `C`. |
+| `problem_solving_and_creativity` | string | Không |  Giá trị: `T`, `D`, `C`. |
+| `language_competence` | string | Không |  Giá trị: `T`, `D`, `C`. |
+| `mathematical_competence` | string | Không |  Giá trị: `T`, `D`, `C`. |
+| `scientific_competence` | string | Không |  Giá trị: `T`, `D`, `C`. |
+| `technological_competence` | string | Không |  Giá trị: `T`, `D`, `C`. |
+| `computer_competence` | string | Không |  Giá trị: `T`, `D`, `C`. |
+| `aesthetic_competence` | string | Không |  Giá trị: `T`, `D`, `C`. |
+| `physical_competence` | string | Không |  Giá trị: `T`, `D`, `C`. |
+| `competencies_comment` | string | Không |  |
+| `evaluation_date` | string | Không |  |
+
+### Responses
+
+| Mã | Mô tả |
+|---|---|
+| `200` | Ghi nhận đánh giá thành công |
+| `400` | Dữ liệu đầu vào không hợp lệ |
+| `401` | Thiếu header X-School-ID |
+| `403` | Role không được phép truy cập endpoint này |
+
+---
+
+## transcripts
+
+Quản lý học bạ số và snapshot bất biến (TT 27/2020, TT 89/2026)
+
+### `POST /api/v1/transcripts/generate`
+
+<a id="generatetranscriptsnapshot"></a>
+
+**Xuất snapshot học bạ số bất biến kèm giải quyết quy định TT 27 vs TT 89**
+
+Tổng hợp đánh giá cả năm của học sinh, tự động giải quyết quy định áp dụng:
+- Trước 01/12/2026: Áp dụng **Thông tư 27/2020/TT-BGDĐT**.
+- Từ 01/12/2026 trở đi: Áp dụng **Thông tư 89/2026/TT-BGDĐT** (kiểm tra trên máy tính, đề chung lớp 5, giáo dục hòa nhập IEP).
+Lưu snapshot bất biến (JSONB) vào `academic_transcripts_snapshots` với trạng thái khóa `is_locked = true`.
+
+Role được phép: `BGH`, `GVCN`, `SUPER_ADMIN`.
+
+| Tên | Vị trí | Kiểu | Bắt buộc | Mô tả |
+|---|---|---|---|---|
+| `X-School-ID` | header | string | Có | UUID của trường (multi-tenancy). Thiếu header này trả 401. |
+| `X-User-Role` | header | string | Có | Vai trò người gọi. `SUPER_ADMIN` bypass mọi kiểm tra role. Giá trị: `BGH`, `TO_TRUONG`, `GVCN`, `GVBM`, `KE_TOAN`, `VAN_THU`, `PHHS`, `SUPER_ADMIN`. |
+
+### Request body
+
+| Trường | Kiểu | Bắt buộc | Mô tả |
+|---|---|---|---|
+| `student_id` | string (uuid) | Có |  |
+| `academic_year_id` | string | Có |  |
+| `grade_level` | integer | Không |  |
+| `evaluation_date` | string | Không |  |
+| `teacher_signature` | string | Không |  |
+| `principal_signature` | string | Không |  |
+
+### Responses
+
+| Mã | Mô tả |
+|---|---|
+| `200` | Tạo snapshot học bạ thành công |
 | `400` | Dữ liệu đầu vào không hợp lệ |
 | `401` | Thiếu header X-School-ID |
 | `403` | Role không được phép truy cập endpoint này |

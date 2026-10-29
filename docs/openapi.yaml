@@ -44,7 +44,9 @@ tags:
   - name: kpi
     description: Đánh giá KPI 360 độ và xếp loại viên chức (NĐ 90/2020, NĐ 48/2023)
   - name: evaluations
-    description: Trợ lý sư phạm gợi ý nhận xét học sinh (TT 27/2020, TT 89/2026)
+    description: Đánh giá học sinh và trợ lý sư phạm (TT 27/2020, TT 89/2026)
+  - name: transcripts
+    description: Quản lý học bạ số và snapshot bất biến (TT 27/2020, TT 89/2026)
   - name: boarding
     description: Bán trú — báo hủy suất ăn và hoàn tiền
   - name: students
@@ -315,6 +317,241 @@ paths:
                 suggestions:
                   - Em Minh Khôi tiếp thu bài rất nhanh, nắm vững kiến thức môn Toán, tích cực phát biểu và có tư duy sáng tạo tốt.
                   - Em Minh Khôi có thành tích xuất sắc môn Toán, kĩ năng thực hành thành thạo, chữ viết cẩn thận, gương mẫu trong học tập.
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/MissingSchoolId'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  /api/v1/evaluations/subject-scores:
+    post:
+      tags: [evaluations]
+      summary: Nhập đánh giá kết quả học tập môn học
+      description: |
+        Đánh giá thường xuyên và định kỳ môn học theo **Thông tư 27/2020** hoặc **Thông tư 89/2026**.
+        Mức đạt bắt buộc: `HTT`, `HT`, `CHT`. Điểm kiểm tra định kỳ từ 1.0 đến 10.0 (chỉ với môn có điểm số).
+        
+        Role được phép: `BGH`, `GVCN`, `GVBM`, `SUPER_ADMIN`.
+      operationId: recordSubjectScore
+      parameters:
+        - $ref: '#/components/parameters/SchoolId'
+        - $ref: '#/components/parameters/UserRole'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [student_id, term_id, subject_id, achievement_level]
+              properties:
+                student_id:
+                  type: string
+                  format: uuid
+                term_id:
+                  type: string
+                  example: 2026-2027-HK1
+                subject_id:
+                  type: string
+                  example: TOAN
+                teacher_id:
+                  type: string
+                  format: uuid
+                achievement_level:
+                  type: string
+                  enum: [HTT, HT, CHT]
+                exam_score:
+                  type: number
+                  format: float
+                  minimum: 1.0
+                  maximum: 10.0
+                teacher_comment:
+                  type: string
+                ai_suggested_comment:
+                  type: string
+                is_ai_assisted:
+                  type: boolean
+                is_computer_based_test:
+                  type: boolean
+                is_centralized_exam:
+                  type: boolean
+                evaluation_date:
+                  type: string
+                  example: '2026-10-25'
+      responses:
+        '200':
+          description: Ghi nhận đánh giá thành công
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiEnvelope'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/MissingSchoolId'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  /api/v1/evaluations/behaviors:
+    post:
+      tags: [evaluations]
+      summary: Đánh giá phẩm chất và năng lực học sinh
+      description: |
+        Đánh giá 5 phẩm chất chủ yếu (Yêu nước, Nhân ái, Chăm chỉ, Trung thực, Trách nhiệm)
+        và 10 năng lực (3 năng lực chung + 7 năng lực đặc thù) theo **Thông tư 27/2020** và **Thông tư 89/2026**.
+        Mức đánh giá: `T` (Tốt), `D` (Đạt), `C` (Cần cố gắng).
+        
+        Role được phép: `BGH`, `GVCN`, `SUPER_ADMIN`.
+      operationId: recordBehaviorEvaluation
+      parameters:
+        - $ref: '#/components/parameters/SchoolId'
+        - $ref: '#/components/parameters/UserRole'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [student_id, term_id, patriotism, compassion, diligence, honesty, responsibility]
+              properties:
+                student_id:
+                  type: string
+                  format: uuid
+                term_id:
+                  type: string
+                  example: 2026-2027-HK1
+                evaluator_id:
+                  type: string
+                  format: uuid
+                patriotism:
+                  type: string
+                  enum: [T, D, C]
+                compassion:
+                  type: string
+                  enum: [T, D, C]
+                diligence:
+                  type: string
+                  enum: [T, D, C]
+                honesty:
+                  type: string
+                  enum: [T, D, C]
+                responsibility:
+                  type: string
+                  enum: [T, D, C]
+                qualities_comment:
+                  type: string
+                autonomy_and_self_learning:
+                  type: string
+                  enum: [T, D, C]
+                communication_and_collaboration:
+                  type: string
+                  enum: [T, D, C]
+                problem_solving_and_creativity:
+                  type: string
+                  enum: [T, D, C]
+                language_competence:
+                  type: string
+                  enum: [T, D, C]
+                mathematical_competence:
+                  type: string
+                  enum: [T, D, C]
+                scientific_competence:
+                  type: string
+                  enum: [T, D, C]
+                technological_competence:
+                  type: string
+                  enum: [T, D, C]
+                computer_competence:
+                  type: string
+                  enum: [T, D, C]
+                aesthetic_competence:
+                  type: string
+                  enum: [T, D, C]
+                physical_competence:
+                  type: string
+                  enum: [T, D, C]
+                competencies_comment:
+                  type: string
+                evaluation_date:
+                  type: string
+                  example: '2026-10-25'
+      responses:
+        '200':
+          description: Ghi nhận đánh giá thành công
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiEnvelope'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/MissingSchoolId'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  /api/v1/transcripts/generate:
+    post:
+      tags: [transcripts]
+      summary: Xuất snapshot học bạ số bất biến kèm giải quyết quy định TT 27 vs TT 89
+      description: |
+        Tổng hợp đánh giá cả năm của học sinh, tự động giải quyết quy định áp dụng:
+        - Trước 01/12/2026: Áp dụng **Thông tư 27/2020/TT-BGDĐT**.
+        - Từ 01/12/2026 trở đi: Áp dụng **Thông tư 89/2026/TT-BGDĐT** (kiểm tra trên máy tính, đề chung lớp 5, giáo dục hòa nhập IEP).
+        Lưu snapshot bất biến (JSONB) vào `academic_transcripts_snapshots` với trạng thái khóa `is_locked = true`.
+        
+        Role được phép: `BGH`, `GVCN`, `SUPER_ADMIN`.
+      operationId: generateTranscriptSnapshot
+      parameters:
+        - $ref: '#/components/parameters/SchoolId'
+        - $ref: '#/components/parameters/UserRole'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [student_id, academic_year_id]
+              properties:
+                student_id:
+                  type: string
+                  format: uuid
+                academic_year_id:
+                  type: string
+                  example: 2026-2027
+                grade_level:
+                  type: integer
+                  minimum: 1
+                  maximum: 5
+                  example: 5
+                evaluation_date:
+                  type: string
+                  example: '2026-10-25'
+                teacher_signature:
+                  type: string
+                principal_signature:
+                  type: string
+      responses:
+        '200':
+          description: Tạo snapshot học bạ thành công
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiEnvelope'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
         '400':
           $ref: '#/components/responses/BadRequest'
         '401':

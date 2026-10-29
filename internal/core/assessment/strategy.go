@@ -3,6 +3,7 @@ package assessment
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"math"
 	"time"
 
@@ -23,6 +24,7 @@ const (
 type Strategy interface {
 	GetRegulationCode() string
 	ValidateSubjectScore(sub domain.StudentSubjectEvaluation) error
+	ValidateBehavior(behavior domain.StudentBehaviorEvaluation) error
 	EvaluateYearEnd(
 		student domain.Student,
 		subjects []domain.StudentSubjectEvaluation,
@@ -63,6 +65,58 @@ func (s *StrategyTT27Primary) ValidateSubjectScore(sub domain.StudentSubjectEval
 	return nil
 }
 
+func normalizeLevel(l string) string {
+	if l == "Đ" || l == "đ" || l == "d" {
+		return "D"
+	}
+	if l == "t" {
+		return "T"
+	}
+	if l == "c" {
+		return "C"
+	}
+	return l
+}
+
+func isValidBehaviorLevel(l string) bool {
+	norm := normalizeLevel(l)
+	return norm == "T" || norm == "D" || norm == "C"
+}
+
+func (s *StrategyTT27Primary) ValidateBehavior(behavior domain.StudentBehaviorEvaluation) error {
+	qualities := map[string]string{
+		"patriotism":     behavior.Patriotism,
+		"compassion":     behavior.Compassion,
+		"diligence":      behavior.Diligence,
+		"honesty":        behavior.Honesty,
+		"responsibility": behavior.Responsibility,
+	}
+	for name, val := range qualities {
+		if val == "" || !isValidBehaviorLevel(val) {
+			return fmt.Errorf("quality %s has invalid level '%s' (must be T, D, or C)", name, val)
+		}
+	}
+
+	competencies := map[string]string{
+		"autonomy_self_learning":     behavior.AutonomySelfLearning,
+		"communication_cooperation":  behavior.CommunicationCooperation,
+		"problem_solving_creativity": behavior.ProblemSolvingCreativity,
+		"language_competence":        behavior.LanguageCompetence,
+		"mathematical_competence":    behavior.MathematicalCompetence,
+		"scientific_competence":      behavior.ScientificCompetence,
+		"technological_competence":   behavior.TechnologicalCompetence,
+		"computer_competence":        behavior.ComputerCompetence,
+		"aesthetic_competence":       behavior.AestheticCompetence,
+		"physical_competence":        behavior.PhysicalCompetence,
+	}
+	for name, val := range competencies {
+		if val != "" && !isValidBehaviorLevel(val) {
+			return fmt.Errorf("competency %s has invalid level '%s' (must be T, D, or C)", name, val)
+		}
+	}
+	return nil
+}
+
 // subjectAggregate tổng hợp kết quả các môn học phục vụ xếp loại cuối năm (TT 27/2020 Điều 9)
 type subjectAggregate struct {
 	allHTT       bool
@@ -86,17 +140,29 @@ func aggregateSubjects(subjects []domain.StudentSubjectEvaluation) subjectAggreg
 	return agg
 }
 
-// qualityLevels trả về danh sách mức đánh giá của 5 phẩm chất + 3 năng lực chung (TT 27/2020 Điều 7, 8)
+// qualityLevels trả về danh sách mức đánh giá của 5 phẩm chất + 3 năng lực chung và các năng lực đặc thù (TT 27/2020 Điều 7, 8)
 func qualityLevels(b domain.StudentBehaviorEvaluation) []string {
-	return []string{
-		b.Patriotism, b.Compassion, b.Diligence, b.Honesty, b.Responsibility,
-		b.AutonomySelfLearning, b.CommunicationCooperation, b.ProblemSolvingCreativity,
+	levels := []string{
+		normalizeLevel(b.Patriotism), normalizeLevel(b.Compassion), normalizeLevel(b.Diligence),
+		normalizeLevel(b.Honesty), normalizeLevel(b.Responsibility),
+		normalizeLevel(b.AutonomySelfLearning), normalizeLevel(b.CommunicationCooperation),
+		normalizeLevel(b.ProblemSolvingCreativity),
 	}
+	specific := []string{
+		b.LanguageCompetence, b.MathematicalCompetence, b.ScientificCompetence,
+		b.TechnologicalCompetence, b.ComputerCompetence, b.AestheticCompetence, b.PhysicalCompetence,
+	}
+	for _, s := range specific {
+		if s != "" {
+			levels = append(levels, normalizeLevel(s))
+		}
+	}
+	return levels
 }
 
 func allLevelsEqual(levels []string, level string) bool {
 	for _, l := range levels {
-		if l != level {
+		if normalizeLevel(l) != level {
 			return false
 		}
 	}
@@ -105,7 +171,7 @@ func allLevelsEqual(levels []string, level string) bool {
 
 func anyLevelEquals(levels []string, level string) bool {
 	for _, l := range levels {
-		if l == level {
+		if normalizeLevel(l) == level {
 			return true
 		}
 	}
@@ -188,6 +254,10 @@ func (s *StrategyTT89Primary) ValidateSubjectScore(sub domain.StudentSubjectEval
 	return s.base.ValidateSubjectScore(sub)
 }
 
+func (s *StrategyTT89Primary) ValidateBehavior(behavior domain.StudentBehaviorEvaluation) error {
+	return s.base.ValidateBehavior(behavior)
+}
+
 func (s *StrategyTT89Primary) EvaluateYearEnd(
 	student domain.Student,
 	subjects []domain.StudentSubjectEvaluation,
@@ -249,7 +319,7 @@ func NewRegistry() *Registry {
 // ResolveStrategy dynamically resolves the correct strategy according to the legal effective date
 func (r *Registry) ResolveStrategy(evalDate time.Time) Strategy {
 	// Legal Effective Date of Circular 89/2026/TT-BGDĐT: December 1st, 2026
-	tt89EffectiveDate := time.Date(2026, time.December, 1, 0, 0, 0, 0, time.Local)
+	tt89EffectiveDate := time.Date(2026, time.December, 1, 0, 0, 0, 0, evalDate.Location())
 
 	if evalDate.After(tt89EffectiveDate) || evalDate.Equal(tt89EffectiveDate) {
 		return r.strategies["TT89_2026"]
