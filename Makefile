@@ -1,4 +1,4 @@
-.PHONY: all deps build test qa run lint fmt-check docs clean docker-up docker-down db-init db-test
+.PHONY: all deps build test test-browser qa run lint fmt-check docs clean docker-up docker-down db-init db-test
 
 all: build test
 
@@ -11,6 +11,9 @@ build:
 
 test:
 	go test -v -count=1 ./...
+
+test-browser:
+	NODE_PATH="$${NODE_PATH:-/usr/local/lib/node_modules}" node scripts/qa_browser.js
 
 db-init:
 	./scripts/init_db.sh
