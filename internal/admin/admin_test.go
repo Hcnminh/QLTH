@@ -645,3 +645,57 @@ func TestAllSubsystemsTableDisplayFilteringAndDetails(t *testing.T) {
 		})
 	}
 }
+
+// TestTimetableAndIntegrationsPanels tests the interactive Timetable and Integrations UI panels
+func TestTimetableAndIntegrationsPanels(t *testing.T) {
+	r := setupTestAdmin(t)
+
+	// Authenticate to get session cookie
+	formVals := url.Values{}
+	formVals.Add("username", "admin")
+	formVals.Add("password", "admin")
+
+	loginReq, _ := http.NewRequest(http.MethodPost, "/admin/signin", strings.NewReader(formVals.Encode()))
+	loginReq.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	loginW := httptest.NewRecorder()
+	r.ServeHTTP(loginW, loginReq)
+
+	var sessionCookie *http.Cookie
+	for _, c := range loginW.Result().Cookies() {
+		if c.Name == "go_admin_session" {
+			sessionCookie = c
+			break
+		}
+	}
+	if sessionCookie == nil {
+		t.Fatal("session cookie missing")
+	}
+
+	// 1. Check Timetable Panel (/admin/timetable)
+	reqTT, _ := http.NewRequest(http.MethodGet, "/admin/timetable", nil)
+	reqTT.AddCookie(sessionCookie)
+	wTT := httptest.NewRecorder()
+	r.ServeHTTP(wTT, reqTT)
+
+	if wTT.Code != http.StatusOK {
+		t.Fatalf("expected status 200 for /admin/timetable, got %d", wTT.Code)
+	}
+	bodyTT := wTT.Body.String()
+	if !strings.Contains(bodyTT, "05/2025/TT-BGDĐT") || !strings.Contains(bodyTT, "Thời Khóa Biểu") {
+		t.Errorf("timetable panel missing expected content: %s", bodyTT)
+	}
+
+	// 2. Check Integrations Panel (/admin/integrations)
+	reqInt, _ := http.NewRequest(http.MethodGet, "/admin/integrations", nil)
+	reqInt.AddCookie(sessionCookie)
+	wInt := httptest.NewRecorder()
+	r.ServeHTTP(wInt, reqInt)
+
+	if wInt.Code != http.StatusOK {
+		t.Fatalf("expected status 200 for /admin/integrations, got %d", wInt.Code)
+	}
+	bodyInt := wInt.Body.String()
+	if !strings.Contains(bodyInt, "VNeID") || !strings.Contains(bodyInt, "SmartCA") || !strings.Contains(bodyInt, "MOET") {
+		t.Errorf("integrations panel missing expected content: %s", bodyInt)
+	}
+}
