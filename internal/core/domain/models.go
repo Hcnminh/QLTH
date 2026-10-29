@@ -237,17 +237,20 @@ type AcademicTranscriptSnapshot struct {
 
 // BoardingMenu represents a daily menu with nutritional facts
 type BoardingMenu struct {
-	ID                      uuid.UUID `json:"id"`
-	SchoolID                uuid.UUID `json:"school_id"`
-	MenuDate                time.Time `json:"menu_date"`
-	MealType                string    `json:"meal_type"` // 'LUNCH', 'SNACK', 'BREAKFAST'
-	DishesDescription       string    `json:"dishes_description"`
-	TotalKcal               float64   `json:"total_kcal"` // 600 - 750 Kcal for primary lunch
-	ProteinPercent          float64   `json:"protein_percent"`
-	LipidPercent            float64   `json:"lipid_percent"`
-	GlucidPercent           float64   `json:"glucid_percent"`
-	SampleRetentionVerified bool      `json:"sample_retention_verified"` // Lưu mẫu 24h
-	PhotoURL                string    `json:"photo_url"`
+	ID                      uuid.UUID       `json:"id"`
+	SchoolID                uuid.UUID       `json:"school_id"`
+	MenuDate                time.Time       `json:"menu_date"`
+	MealType                string          `json:"meal_type"` // 'LUNCH', 'SNACK', 'BREAKFAST'
+	DishesDescription       string          `json:"dishes_description,omitempty"`
+	Dishes                  json.RawMessage `json:"dishes,omitempty"`
+	TotalKcal               float64         `json:"total_kcal"` // 600 - 750 Kcal for primary lunch
+	ProteinPercent          float64         `json:"protein_percent"`
+	LipidPercent            float64         `json:"lipid_percent"`
+	GlucidPercent           float64         `json:"glucid_percent"`
+	SampleRetentionVerified bool            `json:"sample_retention_verified"` // Lưu mẫu 24h
+	SampleKeeperID          *uuid.UUID      `json:"sample_keeper_id,omitempty"`
+	PhotoURL                string          `json:"photo_url"`
+	CreatedAt               time.Time       `json:"created_at,omitempty"`
 }
 
 // BoardingDailyAttendance represents daily meal attendance
@@ -260,4 +263,21 @@ type BoardingDailyAttendance struct {
 	CancellationTime    *time.Time `json:"cancellation_time"`
 	IsRefundEligible    bool       `json:"is_refund_eligible"` // True if cancelled before 8:00 AM
 	RefundAmount        float64    `json:"refund_amount"`
+}
+
+// StudentHealthRecord represents student health profile, BMI, and medical diary
+type StudentHealthRecord struct {
+	ID                uuid.UUID       `json:"id"`
+	StudentID         uuid.UUID       `json:"student_id"`
+	CheckupDate       time.Time       `json:"checkup_date"`
+	HeightCm          float64         `json:"height_cm"`
+	WeightKg          float64         `json:"weight_kg"`
+	BMI               float64         `json:"bmi"`
+	BMICategory       string          `json:"bmi_category"`
+	LeftEyeVision     string          `json:"left_eye_vision"`
+	RightEyeVision    string          `json:"right_eye_vision"`
+	DentalCondition   string          `json:"dental_condition"`
+	ChronicConditions string          `json:"chronic_conditions"`
+	MedicalEvents     json.RawMessage `json:"medical_events"`
+	UpdatedAt         time.Time       `json:"updated_at"`
 }

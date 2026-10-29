@@ -48,7 +48,9 @@ tags:
   - name: transcripts
     description: Quản lý học bạ số và snapshot bất biến (TT 27/2020, TT 89/2026)
   - name: boarding
-    description: Bán trú — báo hủy suất ăn và hoàn tiền
+    description: Bán trú — thực đơn, phân tích dinh dưỡng Viện Dinh Dưỡng, lưu mẫu 24h và hoàn tiền
+  - name: health
+    description: Y tế học đường, khám sức khỏe, BMI, thị lực và cấp phát thuốc
   - name: students
     description: Hồ sơ học sinh và tiếp nhận tuyển sinh
   - name: curriculum
@@ -993,6 +995,425 @@ paths:
         '403':
           $ref: '#/components/responses/Forbidden'
 
+  /api/v1/boarding/menus:
+    get:
+      tags: [boarding]
+      summary: Lấy danh sách thực đơn và phân tích dinh dưỡng
+      description: |
+        Truy vấn danh sách thực đơn bán trú kèm phân tích dinh dưỡng theo chuẩn Viện Dinh Dưỡng
+        (Kcal: 600-750, P: 13-20%, L: 20-30%, G: 50-65%) và kiểm tra lưu mẫu 24h.
+        
+        Role được phép: `BGH`, `KE_TOAN`, `GVCN`, `GVBM`, `PHHS`, `Y_TE`, `NHAN_VIEN_Y_TE`, `SUPER_ADMIN`.
+      operationId: listBoardingMenus
+      parameters:
+        - $ref: '#/components/parameters/SchoolId'
+        - $ref: '#/components/parameters/UserRole'
+        - name: date
+          in: query
+          required: false
+          description: Lọc theo ngày (YYYY-MM-DD)
+          schema:
+            type: string
+            format: date
+        - name: meal_type
+          in: query
+          required: false
+          description: Lọc theo bữa (LUNCH, SNACK, BREAKFAST)
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Lấy danh sách thực đơn thành công
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiEnvelope'
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items:
+                          type: object
+        '401':
+          $ref: '#/components/responses/MissingSchoolId'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+    post:
+      tags: [boarding]
+      summary: Lập kế hoạch thực đơn bán trú mới
+      description: |
+        Tạo thực đơn mới, tự động tính tổng Kcal và tỷ lệ P:L:G từ các món ăn thành phần.
+        
+        Role được phép: `BGH`, `KE_TOAN`, `Y_TE`, `NHAN_VIEN_Y_TE`, `BEP_TRUONG`, `SUPER_ADMIN`.
+      operationId: createBoardingMenu
+      parameters:
+        - $ref: '#/components/parameters/SchoolId'
+        - $ref: '#/components/parameters/UserRole'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [menu_date]
+              properties:
+                menu_date:
+                  type: string
+                  format: date
+                meal_type:
+                  type: string
+                  example: LUNCH
+                dishes:
+                  type: array
+                  items:
+                    type: object
+                total_kcal:
+                  type: number
+                protein_percent:
+                  type: number
+                lipid_percent:
+                  type: number
+                glucid_percent:
+                  type: number
+                sample_retention_verified:
+                  type: boolean
+      responses:
+        '201':
+          description: Thực đơn được tạo thành công
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiEnvelope'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/MissingSchoolId'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  /api/v1/boarding/menus/{id}/sample-retention:
+    post:
+      tags: [boarding]
+      summary: Xác nhận kiểm tra lưu mẫu thức ăn 24h
+      description: |
+        Kiểm tra thời gian lưu mẫu >= 24h và nhiệt độ 2-8°C theo Quyết định 1246/QĐ-BYT.
+        
+        Role được phép: `BGH`, `Y_TE`, `NHAN_VIEN_Y_TE`, `BEP_TRUONG`, `SUPER_ADMIN`.
+      operationId: verifyFoodSampleRetention
+      parameters:
+        - $ref: '#/components/parameters/SchoolId'
+        - $ref: '#/components/parameters/UserRole'
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [sampled_at, storage_temperature, keeper_name]
+              properties:
+                sampled_at:
+                  type: string
+                  format: date-time
+                storage_temperature:
+                  type: number
+                  example: 4.0
+                keeper_name:
+                  type: string
+      responses:
+        '200':
+          description: Xác nhận lưu mẫu thức ăn thành công
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiEnvelope'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/MissingSchoolId'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  /api/v1/students/{id}/health:
+    get:
+      tags: [health]
+      summary: Lấy hồ sơ sức khỏe và nhật ký y tế học sinh
+      description: |
+        Truy vấn thông tin thể lực, tính toán BMI, phân loại thể trạng, đánh giá thị lực,
+        nhật ký khám sức khỏe và các đơn thuốc được cấp phát.
+        
+        Role được phép: `BGH`, `GVCN`, `Y_TE`, `NHAN_VIEN_Y_TE`, `PHHS`, `SUPER_ADMIN`.
+      operationId: getStudentHealthProfile
+      parameters:
+        - $ref: '#/components/parameters/SchoolId'
+        - $ref: '#/components/parameters/UserRole'
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Lấy hồ sơ sức khỏe thành công
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiEnvelope'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/MissingSchoolId'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+    post:
+      tags: [health]
+      summary: Ghi nhận kết quả khám sức khỏe học sinh
+      description: |
+        Cập nhật chiều cao, cân nặng, tự động tính BMI và phân loại thể trạng (Suy dinh dưỡng / Bình thường / Thừa cân / Béo phì).
+        
+        Role được phép: `BGH`, `Y_TE`, `NHAN_VIEN_Y_TE`, `SUPER_ADMIN`.
+      operationId: recordStudentHealth
+      parameters:
+        - $ref: '#/components/parameters/SchoolId'
+        - $ref: '#/components/parameters/UserRole'
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [height_cm, weight_kg]
+              properties:
+                checkup_date:
+                  type: string
+                  format: date
+                height_cm:
+                  type: number
+                  example: 125.0
+                weight_kg:
+                  type: number
+                  example: 24.5
+                left_eye_vision:
+                  type: string
+                  example: '10/10'
+                right_eye_vision:
+                  type: string
+                  example: '9/10'
+                dental_condition:
+                  type: string
+                chronic_conditions:
+                  type: string
+      responses:
+        '200':
+          description: Cập nhật khám sức khỏe thành công
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiEnvelope'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/MissingSchoolId'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  /api/v1/students/{id}/health/prescriptions:
+    post:
+      tags: [health]
+      summary: Phụ huynh gửi yêu cầu cấp phát thuốc tại trường
+      description: |
+        Gửi thông tin thuốc cần uống, liều lượng và thời gian cho học sinh.
+        
+        Role được phép: `BGH`, `GVCN`, `PHHS`, `Y_TE`, `NHAN_VIEN_Y_TE`, `SUPER_ADMIN`.
+      operationId: addPrescriptionDelivery
+      parameters:
+        - $ref: '#/components/parameters/SchoolId'
+        - $ref: '#/components/parameters/UserRole'
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [medication_name, dosage, administration_time]
+              properties:
+                medication_name:
+                  type: string
+                dosage:
+                  type: string
+                administration_time:
+                  type: string
+                instructions:
+                  type: string
+                parent_notes:
+                  type: string
+      responses:
+        '201':
+          description: Gửi yêu cầu đơn thuốc thành công
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiEnvelope'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/MissingSchoolId'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  /api/v1/students/{id}/health/prescriptions/{rx_id}/administer:
+    post:
+      tags: [health]
+      summary: Nhân viên y tế xác nhận cho uống thuốc
+      description: |
+        Xác nhận thời điểm và nhân viên thực hiện cấp phát thuốc cho học sinh.
+        
+        Role được phép: `BGH`, `Y_TE`, `NHAN_VIEN_Y_TE`, `SUPER_ADMIN`.
+      operationId: administerPrescription
+      parameters:
+        - $ref: '#/components/parameters/SchoolId'
+        - $ref: '#/components/parameters/UserRole'
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: rx_id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [nurse_name]
+              properties:
+                nurse_name:
+                  type: string
+      responses:
+        '200':
+          description: Đã xác nhận cấp phát thuốc
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiEnvelope'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/MissingSchoolId'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  /api/v1/students/{id}/health/medical-events:
+    post:
+      tags: [health]
+      summary: Ghi nhận sự kiện y tế hoặc sơ cấp cứu tại trường
+      description: |
+        Lưu nhật ký sơ cấp cứu, xử lý sốt/tai nạn nhỏ tại phòng y tế học đường.
+        
+        Role được phép: `BGH`, `Y_TE`, `NHAN_VIEN_Y_TE`, `SUPER_ADMIN`.
+      operationId: addMedicalEvent
+      parameters:
+        - $ref: '#/components/parameters/SchoolId'
+        - $ref: '#/components/parameters/UserRole'
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [event_type, treatment]
+              properties:
+                event_type:
+                  type: string
+                symptoms:
+                  type: string
+                treatment:
+                  type: string
+                medication_given:
+                  type: string
+                nurse_name:
+                  type: string
+                parent_notified:
+                  type: boolean
+      responses:
+        '201':
+          description: Ghi nhận sự kiện y tế thành công
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiEnvelope'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/MissingSchoolId'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
 components:
   parameters:
     SchoolId:
@@ -1010,7 +1431,7 @@ components:
       description: Vai trò người gọi. `SUPER_ADMIN` bypass mọi kiểm tra role.
       schema:
         type: string
-        enum: [BGH, TO_TRUONG, GVCN, GVBM, KE_TOAN, VAN_THU, PHHS, SUPER_ADMIN]
+        enum: [BGH, TO_TRUONG, GVCN, GVBM, KE_TOAN, VAN_THU, PHHS, Y_TE, NHAN_VIEN_Y_TE, BEP_TRUONG, SUPER_ADMIN]
 
   responses:
     BadRequest:

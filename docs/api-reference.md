@@ -38,11 +38,15 @@ Vai trò hợp lệ: `BGH`, `TO_TRUONG`, `GVCN`, `GVBM`, `KE_TOAN`, `VAN_THU`, `
 
 | Method | Path | Tóm tắt |
 |---|---|---|
+| `GET` | [`/api/v1/boarding/menus`](#listboardingmenus) | Lấy danh sách thực đơn và phân tích dinh dưỡng |
 | `GET` | [`/api/v1/lesson-plans`](#listlessonplans) | Danh sách kế hoạch bài dạy của trường |
 | `GET` | [`/api/v1/lesson-plans/{id}`](#getlessonplan) | Chi tiết kế hoạch bài dạy và lịch sử góp ý |
+| `GET` | [`/api/v1/students/{id}/health`](#getstudenthealthprofile) | Lấy hồ sơ sức khỏe và nhật ký y tế học sinh |
 | `GET` | [`/api/v1/timetable/slots`](#gettimetableslots) | Lấy danh sách các tiết thời khóa biểu |
 | `GET` | [`/health`](#gethealth) | Health check |
 | `POST` | [`/api/v1/boarding/cancel-meal`](#cancelboardingmeal) | Báo hủy suất ăn bán trú và xác định hoàn tiền |
+| `POST` | [`/api/v1/boarding/menus`](#createboardingmenu) | Lập kế hoạch thực đơn bán trú mới |
+| `POST` | [`/api/v1/boarding/menus/{id}/sample-retention`](#verifyfoodsampleretention) | Xác nhận kiểm tra lưu mẫu thức ăn 24h |
 | `POST` | [`/api/v1/evaluations/ai-copilot`](#aipedagogicalcopilot) | Trợ lý sư phạm gợi ý nhận xét học sinh |
 | `POST` | [`/api/v1/evaluations/behaviors`](#recordbehaviorevaluation) | Đánh giá phẩm chất và năng lực học sinh |
 | `POST` | [`/api/v1/evaluations/subject-scores`](#recordsubjectscore) | Nhập đánh giá kết quả học tập môn học |
@@ -51,6 +55,10 @@ Vai trò hợp lệ: `BGH`, `TO_TRUONG`, `GVCN`, `GVBM`, `KE_TOAN`, `VAN_THU`, `
 | `POST` | [`/api/v1/lesson-plans/submit`](#submitlessonplan) | Nộp kế hoạch bài dạy (CV 2345 / STEM TT 86) |
 | `POST` | [`/api/v1/lesson-plans/{id}/approve`](#approvelessonplan) | Phê duyệt hoặc góp ý kế hoạch bài dạy phân tầng |
 | `POST` | [`/api/v1/students/onboard`](#onboardstudent) | Tiếp nhận hồ sơ học sinh (tuyển sinh đầu cấp) |
+| `POST` | [`/api/v1/students/{id}/health`](#recordstudenthealth) | Ghi nhận kết quả khám sức khỏe học sinh |
+| `POST` | [`/api/v1/students/{id}/health/medical-events`](#addmedicalevent) | Ghi nhận sự kiện y tế hoặc sơ cấp cứu tại trường |
+| `POST` | [`/api/v1/students/{id}/health/prescriptions`](#addprescriptiondelivery) | Phụ huynh gửi yêu cầu cấp phát thuốc tại trường |
+| `POST` | [`/api/v1/students/{id}/health/prescriptions/{rx_id}/administer`](#administerprescription) | Nhân viên y tế xác nhận cho uống thuốc |
 | `POST` | [`/api/v1/teaching/calculate-quota`](#calculateteachingquota) | Tính định mức tiết dạy và số tiết thừa giờ |
 | `POST` | [`/api/v1/timetable/slots`](#configuretimetableslot) | Cấu hình tiết thời khóa biểu và kiểm soát không trùng lịch |
 | `POST` | [`/api/v1/transcripts/generate`](#generatetranscriptsnapshot) | Xuất snapshot học bạ số bất biến kèm giải quyết quy định TT 27 vs TT 89 |
@@ -96,7 +104,7 @@ Role được phép: `BGH`, `KE_TOAN`, `GVCN`, `GVBM`, `SUPER_ADMIN`.
 | Tên | Vị trí | Kiểu | Bắt buộc | Mô tả |
 |---|---|---|---|---|
 | `X-School-ID` | header | string | Có | UUID của trường (multi-tenancy). Thiếu header này trả 401. |
-| `X-User-Role` | header | string | Có | Vai trò người gọi. `SUPER_ADMIN` bypass mọi kiểm tra role. Giá trị: `BGH`, `TO_TRUONG`, `GVCN`, `GVBM`, `KE_TOAN`, `VAN_THU`, `PHHS`, `SUPER_ADMIN`. |
+| `X-User-Role` | header | string | Có | Vai trò người gọi. `SUPER_ADMIN` bypass mọi kiểm tra role. Giá trị: `BGH`, `TO_TRUONG`, `GVCN`, `GVBM`, `KE_TOAN`, `VAN_THU`, `PHHS`, `Y_TE`, `NHAN_VIEN_Y_TE`, `BEP_TRUONG`, `SUPER_ADMIN`. |
 
 ### Request body
 
@@ -150,7 +158,7 @@ Role được phép: `BGH`, `TO_TRUONG`, `SUPER_ADMIN`.
 | Tên | Vị trí | Kiểu | Bắt buộc | Mô tả |
 |---|---|---|---|---|
 | `X-School-ID` | header | string | Có | UUID của trường (multi-tenancy). Thiếu header này trả 401. |
-| `X-User-Role` | header | string | Có | Vai trò người gọi. `SUPER_ADMIN` bypass mọi kiểm tra role. Giá trị: `BGH`, `TO_TRUONG`, `GVCN`, `GVBM`, `KE_TOAN`, `VAN_THU`, `PHHS`, `SUPER_ADMIN`. |
+| `X-User-Role` | header | string | Có | Vai trò người gọi. `SUPER_ADMIN` bypass mọi kiểm tra role. Giá trị: `BGH`, `TO_TRUONG`, `GVCN`, `GVBM`, `KE_TOAN`, `VAN_THU`, `PHHS`, `Y_TE`, `NHAN_VIEN_Y_TE`, `BEP_TRUONG`, `SUPER_ADMIN`. |
 
 ### Request body
 
@@ -195,7 +203,7 @@ Role được phép: `BGH`, `SUPER_ADMIN`.
 | Tên | Vị trí | Kiểu | Bắt buộc | Mô tả |
 |---|---|---|---|---|
 | `X-School-ID` | header | string | Có | UUID của trường (multi-tenancy). Thiếu header này trả 401. |
-| `X-User-Role` | header | string | Có | Vai trò người gọi. `SUPER_ADMIN` bypass mọi kiểm tra role. Giá trị: `BGH`, `TO_TRUONG`, `GVCN`, `GVBM`, `KE_TOAN`, `VAN_THU`, `PHHS`, `SUPER_ADMIN`. |
+| `X-User-Role` | header | string | Có | Vai trò người gọi. `SUPER_ADMIN` bypass mọi kiểm tra role. Giá trị: `BGH`, `TO_TRUONG`, `GVCN`, `GVBM`, `KE_TOAN`, `VAN_THU`, `PHHS`, `Y_TE`, `NHAN_VIEN_Y_TE`, `BEP_TRUONG`, `SUPER_ADMIN`. |
 
 ### Request body
 
@@ -247,7 +255,7 @@ Role được phép: `BGH`, `GVCN`, `GVBM`, `SUPER_ADMIN`.
 | Tên | Vị trí | Kiểu | Bắt buộc | Mô tả |
 |---|---|---|---|---|
 | `X-School-ID` | header | string | Có | UUID của trường (multi-tenancy). Thiếu header này trả 401. |
-| `X-User-Role` | header | string | Có | Vai trò người gọi. `SUPER_ADMIN` bypass mọi kiểm tra role. Giá trị: `BGH`, `TO_TRUONG`, `GVCN`, `GVBM`, `KE_TOAN`, `VAN_THU`, `PHHS`, `SUPER_ADMIN`. |
+| `X-User-Role` | header | string | Có | Vai trò người gọi. `SUPER_ADMIN` bypass mọi kiểm tra role. Giá trị: `BGH`, `TO_TRUONG`, `GVCN`, `GVBM`, `KE_TOAN`, `VAN_THU`, `PHHS`, `Y_TE`, `NHAN_VIEN_Y_TE`, `BEP_TRUONG`, `SUPER_ADMIN`. |
 
 ### Request body
 
@@ -284,7 +292,7 @@ Role được phép: `BGH`, `GVCN`, `GVBM`, `SUPER_ADMIN`.
 | Tên | Vị trí | Kiểu | Bắt buộc | Mô tả |
 |---|---|---|---|---|
 | `X-School-ID` | header | string | Có | UUID của trường (multi-tenancy). Thiếu header này trả 401. |
-| `X-User-Role` | header | string | Có | Vai trò người gọi. `SUPER_ADMIN` bypass mọi kiểm tra role. Giá trị: `BGH`, `TO_TRUONG`, `GVCN`, `GVBM`, `KE_TOAN`, `VAN_THU`, `PHHS`, `SUPER_ADMIN`. |
+| `X-User-Role` | header | string | Có | Vai trò người gọi. `SUPER_ADMIN` bypass mọi kiểm tra role. Giá trị: `BGH`, `TO_TRUONG`, `GVCN`, `GVBM`, `KE_TOAN`, `VAN_THU`, `PHHS`, `Y_TE`, `NHAN_VIEN_Y_TE`, `BEP_TRUONG`, `SUPER_ADMIN`. |
 
 ### Request body
 
@@ -329,7 +337,7 @@ Role được phép: `BGH`, `GVCN`, `SUPER_ADMIN`.
 | Tên | Vị trí | Kiểu | Bắt buộc | Mô tả |
 |---|---|---|---|---|
 | `X-School-ID` | header | string | Có | UUID của trường (multi-tenancy). Thiếu header này trả 401. |
-| `X-User-Role` | header | string | Có | Vai trò người gọi. `SUPER_ADMIN` bypass mọi kiểm tra role. Giá trị: `BGH`, `TO_TRUONG`, `GVCN`, `GVBM`, `KE_TOAN`, `VAN_THU`, `PHHS`, `SUPER_ADMIN`. |
+| `X-User-Role` | header | string | Có | Vai trò người gọi. `SUPER_ADMIN` bypass mọi kiểm tra role. Giá trị: `BGH`, `TO_TRUONG`, `GVCN`, `GVBM`, `KE_TOAN`, `VAN_THU`, `PHHS`, `Y_TE`, `NHAN_VIEN_Y_TE`, `BEP_TRUONG`, `SUPER_ADMIN`. |
 
 ### Request body
 
@@ -388,7 +396,7 @@ Role được phép: `BGH`, `GVCN`, `SUPER_ADMIN`.
 | Tên | Vị trí | Kiểu | Bắt buộc | Mô tả |
 |---|---|---|---|---|
 | `X-School-ID` | header | string | Có | UUID của trường (multi-tenancy). Thiếu header này trả 401. |
-| `X-User-Role` | header | string | Có | Vai trò người gọi. `SUPER_ADMIN` bypass mọi kiểm tra role. Giá trị: `BGH`, `TO_TRUONG`, `GVCN`, `GVBM`, `KE_TOAN`, `VAN_THU`, `PHHS`, `SUPER_ADMIN`. |
+| `X-User-Role` | header | string | Có | Vai trò người gọi. `SUPER_ADMIN` bypass mọi kiểm tra role. Giá trị: `BGH`, `TO_TRUONG`, `GVCN`, `GVBM`, `KE_TOAN`, `VAN_THU`, `PHHS`, `Y_TE`, `NHAN_VIEN_Y_TE`, `BEP_TRUONG`, `SUPER_ADMIN`. |
 
 ### Request body
 
@@ -414,7 +422,7 @@ Role được phép: `BGH`, `GVCN`, `SUPER_ADMIN`.
 
 ## boarding
 
-Bán trú — báo hủy suất ăn và hoàn tiền
+Bán trú — thực đơn, phân tích dinh dưỡng Viện Dinh Dưỡng, lưu mẫu 24h và hoàn tiền
 
 ### `POST /api/v1/boarding/cancel-meal`
 
@@ -431,7 +439,7 @@ Role được phép: `BGH`, `KE_TOAN`, `GVCN`, `PHHS`, `SUPER_ADMIN`.
 | Tên | Vị trí | Kiểu | Bắt buộc | Mô tả |
 |---|---|---|---|---|
 | `X-School-ID` | header | string | Có | UUID của trường (multi-tenancy). Thiếu header này trả 401. |
-| `X-User-Role` | header | string | Có | Vai trò người gọi. `SUPER_ADMIN` bypass mọi kiểm tra role. Giá trị: `BGH`, `TO_TRUONG`, `GVCN`, `GVBM`, `KE_TOAN`, `VAN_THU`, `PHHS`, `SUPER_ADMIN`. |
+| `X-User-Role` | header | string | Có | Vai trò người gọi. `SUPER_ADMIN` bypass mọi kiểm tra role. Giá trị: `BGH`, `TO_TRUONG`, `GVCN`, `GVBM`, `KE_TOAN`, `VAN_THU`, `PHHS`, `Y_TE`, `NHAN_VIEN_Y_TE`, `BEP_TRUONG`, `SUPER_ADMIN`. |
 
 ### Request body
 
@@ -447,6 +455,288 @@ Role được phép: `BGH`, `KE_TOAN`, `GVCN`, `PHHS`, `SUPER_ADMIN`.
 | Mã | Mô tả |
 |---|---|
 | `200` | Đã ghi nhận hủy suất ăn |
+| `400` | Dữ liệu đầu vào không hợp lệ |
+| `401` | Thiếu header X-School-ID |
+| `403` | Role không được phép truy cập endpoint này |
+
+---
+
+### `GET /api/v1/boarding/menus`
+
+<a id="listboardingmenus"></a>
+
+**Lấy danh sách thực đơn và phân tích dinh dưỡng**
+
+Truy vấn danh sách thực đơn bán trú kèm phân tích dinh dưỡng theo chuẩn Viện Dinh Dưỡng
+(Kcal: 600-750, P: 13-20%, L: 20-30%, G: 50-65%) và kiểm tra lưu mẫu 24h.
+
+Role được phép: `BGH`, `KE_TOAN`, `GVCN`, `GVBM`, `PHHS`, `Y_TE`, `NHAN_VIEN_Y_TE`, `SUPER_ADMIN`.
+
+| Tên | Vị trí | Kiểu | Bắt buộc | Mô tả |
+|---|---|---|---|---|
+| `X-School-ID` | header | string | Có | UUID của trường (multi-tenancy). Thiếu header này trả 401. |
+| `X-User-Role` | header | string | Có | Vai trò người gọi. `SUPER_ADMIN` bypass mọi kiểm tra role. Giá trị: `BGH`, `TO_TRUONG`, `GVCN`, `GVBM`, `KE_TOAN`, `VAN_THU`, `PHHS`, `Y_TE`, `NHAN_VIEN_Y_TE`, `BEP_TRUONG`, `SUPER_ADMIN`. |
+| `date` | query | string | Không | Lọc theo ngày (YYYY-MM-DD) |
+| `meal_type` | query | string | Không | Lọc theo bữa (LUNCH, SNACK, BREAKFAST) |
+
+### Responses
+
+| Mã | Mô tả |
+|---|---|
+| `200` | Lấy danh sách thực đơn thành công |
+| `401` | Thiếu header X-School-ID |
+| `403` | Role không được phép truy cập endpoint này |
+
+---
+
+### `POST /api/v1/boarding/menus`
+
+<a id="createboardingmenu"></a>
+
+**Lập kế hoạch thực đơn bán trú mới**
+
+Tạo thực đơn mới, tự động tính tổng Kcal và tỷ lệ P:L:G từ các món ăn thành phần.
+
+Role được phép: `BGH`, `KE_TOAN`, `Y_TE`, `NHAN_VIEN_Y_TE`, `BEP_TRUONG`, `SUPER_ADMIN`.
+
+| Tên | Vị trí | Kiểu | Bắt buộc | Mô tả |
+|---|---|---|---|---|
+| `X-School-ID` | header | string | Có | UUID của trường (multi-tenancy). Thiếu header này trả 401. |
+| `X-User-Role` | header | string | Có | Vai trò người gọi. `SUPER_ADMIN` bypass mọi kiểm tra role. Giá trị: `BGH`, `TO_TRUONG`, `GVCN`, `GVBM`, `KE_TOAN`, `VAN_THU`, `PHHS`, `Y_TE`, `NHAN_VIEN_Y_TE`, `BEP_TRUONG`, `SUPER_ADMIN`. |
+
+### Request body
+
+| Trường | Kiểu | Bắt buộc | Mô tả |
+|---|---|---|---|
+| `menu_date` | string (date) | Có |  |
+| `meal_type` | string | Không |  |
+| `dishes` | array<object> | Không |  |
+| `total_kcal` | number | Không |  |
+| `protein_percent` | number | Không |  |
+| `lipid_percent` | number | Không |  |
+| `glucid_percent` | number | Không |  |
+| `sample_retention_verified` | boolean | Không |  |
+
+### Responses
+
+| Mã | Mô tả |
+|---|---|
+| `201` | Thực đơn được tạo thành công |
+| `400` | Dữ liệu đầu vào không hợp lệ |
+| `401` | Thiếu header X-School-ID |
+| `403` | Role không được phép truy cập endpoint này |
+
+---
+
+### `POST /api/v1/boarding/menus/{id}/sample-retention`
+
+<a id="verifyfoodsampleretention"></a>
+
+**Xác nhận kiểm tra lưu mẫu thức ăn 24h**
+
+Kiểm tra thời gian lưu mẫu >= 24h và nhiệt độ 2-8°C theo Quyết định 1246/QĐ-BYT.
+
+Role được phép: `BGH`, `Y_TE`, `NHAN_VIEN_Y_TE`, `BEP_TRUONG`, `SUPER_ADMIN`.
+
+| Tên | Vị trí | Kiểu | Bắt buộc | Mô tả |
+|---|---|---|---|---|
+| `X-School-ID` | header | string | Có | UUID của trường (multi-tenancy). Thiếu header này trả 401. |
+| `X-User-Role` | header | string | Có | Vai trò người gọi. `SUPER_ADMIN` bypass mọi kiểm tra role. Giá trị: `BGH`, `TO_TRUONG`, `GVCN`, `GVBM`, `KE_TOAN`, `VAN_THU`, `PHHS`, `Y_TE`, `NHAN_VIEN_Y_TE`, `BEP_TRUONG`, `SUPER_ADMIN`. |
+| `id` | path | string | Có |  |
+
+### Request body
+
+| Trường | Kiểu | Bắt buộc | Mô tả |
+|---|---|---|---|
+| `sampled_at` | string (date-time) | Có |  |
+| `storage_temperature` | number | Có |  |
+| `keeper_name` | string | Có |  |
+
+### Responses
+
+| Mã | Mô tả |
+|---|---|
+| `200` | Xác nhận lưu mẫu thức ăn thành công |
+| `400` | Dữ liệu đầu vào không hợp lệ |
+| `401` | Thiếu header X-School-ID |
+| `403` | Role không được phép truy cập endpoint này |
+
+---
+
+## health
+
+Y tế học đường, khám sức khỏe, BMI, thị lực và cấp phát thuốc
+
+### `GET /api/v1/students/{id}/health`
+
+<a id="getstudenthealthprofile"></a>
+
+**Lấy hồ sơ sức khỏe và nhật ký y tế học sinh**
+
+Truy vấn thông tin thể lực, tính toán BMI, phân loại thể trạng, đánh giá thị lực,
+nhật ký khám sức khỏe và các đơn thuốc được cấp phát.
+
+Role được phép: `BGH`, `GVCN`, `Y_TE`, `NHAN_VIEN_Y_TE`, `PHHS`, `SUPER_ADMIN`.
+
+| Tên | Vị trí | Kiểu | Bắt buộc | Mô tả |
+|---|---|---|---|---|
+| `X-School-ID` | header | string | Có | UUID của trường (multi-tenancy). Thiếu header này trả 401. |
+| `X-User-Role` | header | string | Có | Vai trò người gọi. `SUPER_ADMIN` bypass mọi kiểm tra role. Giá trị: `BGH`, `TO_TRUONG`, `GVCN`, `GVBM`, `KE_TOAN`, `VAN_THU`, `PHHS`, `Y_TE`, `NHAN_VIEN_Y_TE`, `BEP_TRUONG`, `SUPER_ADMIN`. |
+| `id` | path | string | Có |  |
+
+### Responses
+
+| Mã | Mô tả |
+|---|---|
+| `200` | Lấy hồ sơ sức khỏe thành công |
+| `400` | Dữ liệu đầu vào không hợp lệ |
+| `401` | Thiếu header X-School-ID |
+| `403` | Role không được phép truy cập endpoint này |
+
+---
+
+### `POST /api/v1/students/{id}/health`
+
+<a id="recordstudenthealth"></a>
+
+**Ghi nhận kết quả khám sức khỏe học sinh**
+
+Cập nhật chiều cao, cân nặng, tự động tính BMI và phân loại thể trạng (Suy dinh dưỡng / Bình thường / Thừa cân / Béo phì).
+
+Role được phép: `BGH`, `Y_TE`, `NHAN_VIEN_Y_TE`, `SUPER_ADMIN`.
+
+| Tên | Vị trí | Kiểu | Bắt buộc | Mô tả |
+|---|---|---|---|---|
+| `X-School-ID` | header | string | Có | UUID của trường (multi-tenancy). Thiếu header này trả 401. |
+| `X-User-Role` | header | string | Có | Vai trò người gọi. `SUPER_ADMIN` bypass mọi kiểm tra role. Giá trị: `BGH`, `TO_TRUONG`, `GVCN`, `GVBM`, `KE_TOAN`, `VAN_THU`, `PHHS`, `Y_TE`, `NHAN_VIEN_Y_TE`, `BEP_TRUONG`, `SUPER_ADMIN`. |
+| `id` | path | string | Có |  |
+
+### Request body
+
+| Trường | Kiểu | Bắt buộc | Mô tả |
+|---|---|---|---|
+| `checkup_date` | string (date) | Không |  |
+| `height_cm` | number | Có |  |
+| `weight_kg` | number | Có |  |
+| `left_eye_vision` | string | Không |  |
+| `right_eye_vision` | string | Không |  |
+| `dental_condition` | string | Không |  |
+| `chronic_conditions` | string | Không |  |
+
+### Responses
+
+| Mã | Mô tả |
+|---|---|
+| `200` | Cập nhật khám sức khỏe thành công |
+| `400` | Dữ liệu đầu vào không hợp lệ |
+| `401` | Thiếu header X-School-ID |
+| `403` | Role không được phép truy cập endpoint này |
+
+---
+
+### `POST /api/v1/students/{id}/health/prescriptions`
+
+<a id="addprescriptiondelivery"></a>
+
+**Phụ huynh gửi yêu cầu cấp phát thuốc tại trường**
+
+Gửi thông tin thuốc cần uống, liều lượng và thời gian cho học sinh.
+
+Role được phép: `BGH`, `GVCN`, `PHHS`, `Y_TE`, `NHAN_VIEN_Y_TE`, `SUPER_ADMIN`.
+
+| Tên | Vị trí | Kiểu | Bắt buộc | Mô tả |
+|---|---|---|---|---|
+| `X-School-ID` | header | string | Có | UUID của trường (multi-tenancy). Thiếu header này trả 401. |
+| `X-User-Role` | header | string | Có | Vai trò người gọi. `SUPER_ADMIN` bypass mọi kiểm tra role. Giá trị: `BGH`, `TO_TRUONG`, `GVCN`, `GVBM`, `KE_TOAN`, `VAN_THU`, `PHHS`, `Y_TE`, `NHAN_VIEN_Y_TE`, `BEP_TRUONG`, `SUPER_ADMIN`. |
+| `id` | path | string | Có |  |
+
+### Request body
+
+| Trường | Kiểu | Bắt buộc | Mô tả |
+|---|---|---|---|
+| `medication_name` | string | Có |  |
+| `dosage` | string | Có |  |
+| `administration_time` | string | Có |  |
+| `instructions` | string | Không |  |
+| `parent_notes` | string | Không |  |
+
+### Responses
+
+| Mã | Mô tả |
+|---|---|
+| `201` | Gửi yêu cầu đơn thuốc thành công |
+| `400` | Dữ liệu đầu vào không hợp lệ |
+| `401` | Thiếu header X-School-ID |
+| `403` | Role không được phép truy cập endpoint này |
+
+---
+
+### `POST /api/v1/students/{id}/health/prescriptions/{rx_id}/administer`
+
+<a id="administerprescription"></a>
+
+**Nhân viên y tế xác nhận cho uống thuốc**
+
+Xác nhận thời điểm và nhân viên thực hiện cấp phát thuốc cho học sinh.
+
+Role được phép: `BGH`, `Y_TE`, `NHAN_VIEN_Y_TE`, `SUPER_ADMIN`.
+
+| Tên | Vị trí | Kiểu | Bắt buộc | Mô tả |
+|---|---|---|---|---|
+| `X-School-ID` | header | string | Có | UUID của trường (multi-tenancy). Thiếu header này trả 401. |
+| `X-User-Role` | header | string | Có | Vai trò người gọi. `SUPER_ADMIN` bypass mọi kiểm tra role. Giá trị: `BGH`, `TO_TRUONG`, `GVCN`, `GVBM`, `KE_TOAN`, `VAN_THU`, `PHHS`, `Y_TE`, `NHAN_VIEN_Y_TE`, `BEP_TRUONG`, `SUPER_ADMIN`. |
+| `id` | path | string | Có |  |
+| `rx_id` | path | string | Có |  |
+
+### Request body
+
+| Trường | Kiểu | Bắt buộc | Mô tả |
+|---|---|---|---|
+| `nurse_name` | string | Có |  |
+
+### Responses
+
+| Mã | Mô tả |
+|---|---|
+| `200` | Đã xác nhận cấp phát thuốc |
+| `400` | Dữ liệu đầu vào không hợp lệ |
+| `401` | Thiếu header X-School-ID |
+| `403` | Role không được phép truy cập endpoint này |
+
+---
+
+### `POST /api/v1/students/{id}/health/medical-events`
+
+<a id="addmedicalevent"></a>
+
+**Ghi nhận sự kiện y tế hoặc sơ cấp cứu tại trường**
+
+Lưu nhật ký sơ cấp cứu, xử lý sốt/tai nạn nhỏ tại phòng y tế học đường.
+
+Role được phép: `BGH`, `Y_TE`, `NHAN_VIEN_Y_TE`, `SUPER_ADMIN`.
+
+| Tên | Vị trí | Kiểu | Bắt buộc | Mô tả |
+|---|---|---|---|---|
+| `X-School-ID` | header | string | Có | UUID của trường (multi-tenancy). Thiếu header này trả 401. |
+| `X-User-Role` | header | string | Có | Vai trò người gọi. `SUPER_ADMIN` bypass mọi kiểm tra role. Giá trị: `BGH`, `TO_TRUONG`, `GVCN`, `GVBM`, `KE_TOAN`, `VAN_THU`, `PHHS`, `Y_TE`, `NHAN_VIEN_Y_TE`, `BEP_TRUONG`, `SUPER_ADMIN`. |
+| `id` | path | string | Có |  |
+
+### Request body
+
+| Trường | Kiểu | Bắt buộc | Mô tả |
+|---|---|---|---|
+| `event_type` | string | Có |  |
+| `symptoms` | string | Không |  |
+| `treatment` | string | Có |  |
+| `medication_given` | string | Không |  |
+| `nurse_name` | string | Không |  |
+| `parent_notified` | boolean | Không |  |
+
+### Responses
+
+| Mã | Mô tả |
+|---|---|
+| `201` | Ghi nhận sự kiện y tế thành công |
 | `400` | Dữ liệu đầu vào không hợp lệ |
 | `401` | Thiếu header X-School-ID |
 | `403` | Role không được phép truy cập endpoint này |
@@ -474,7 +764,7 @@ Role được phép: `BGH`, `VAN_THU`, `SUPER_ADMIN`.
 | Tên | Vị trí | Kiểu | Bắt buộc | Mô tả |
 |---|---|---|---|---|
 | `X-School-ID` | header | string | Có | UUID của trường (multi-tenancy). Thiếu header này trả 401. |
-| `X-User-Role` | header | string | Có | Vai trò người gọi. `SUPER_ADMIN` bypass mọi kiểm tra role. Giá trị: `BGH`, `TO_TRUONG`, `GVCN`, `GVBM`, `KE_TOAN`, `VAN_THU`, `PHHS`, `SUPER_ADMIN`. |
+| `X-User-Role` | header | string | Có | Vai trò người gọi. `SUPER_ADMIN` bypass mọi kiểm tra role. Giá trị: `BGH`, `TO_TRUONG`, `GVCN`, `GVBM`, `KE_TOAN`, `VAN_THU`, `PHHS`, `Y_TE`, `NHAN_VIEN_Y_TE`, `BEP_TRUONG`, `SUPER_ADMIN`. |
 
 ### Request body
 
@@ -533,7 +823,7 @@ Role được phép: `BGH`, `TO_TRUONG`, `GVCN`, `GVBM`, `GV`, `SUPER_ADMIN`.
 | Tên | Vị trí | Kiểu | Bắt buộc | Mô tả |
 |---|---|---|---|---|
 | `X-School-ID` | header | string | Có | UUID của trường (multi-tenancy). Thiếu header này trả 401. |
-| `X-User-Role` | header | string | Có | Vai trò người gọi. `SUPER_ADMIN` bypass mọi kiểm tra role. Giá trị: `BGH`, `TO_TRUONG`, `GVCN`, `GVBM`, `KE_TOAN`, `VAN_THU`, `PHHS`, `SUPER_ADMIN`. |
+| `X-User-Role` | header | string | Có | Vai trò người gọi. `SUPER_ADMIN` bypass mọi kiểm tra role. Giá trị: `BGH`, `TO_TRUONG`, `GVCN`, `GVBM`, `KE_TOAN`, `VAN_THU`, `PHHS`, `Y_TE`, `NHAN_VIEN_Y_TE`, `BEP_TRUONG`, `SUPER_ADMIN`. |
 
 ### Request body
 
@@ -583,7 +873,7 @@ Role được phép: `BGH`, `TO_TRUONG`, `SUPER_ADMIN`.
 |---|---|---|---|---|
 | `id` | path | string | Có | UUID của kế hoạch bài dạy |
 | `X-School-ID` | header | string | Có | UUID của trường (multi-tenancy). Thiếu header này trả 401. |
-| `X-User-Role` | header | string | Có | Vai trò người gọi. `SUPER_ADMIN` bypass mọi kiểm tra role. Giá trị: `BGH`, `TO_TRUONG`, `GVCN`, `GVBM`, `KE_TOAN`, `VAN_THU`, `PHHS`, `SUPER_ADMIN`. |
+| `X-User-Role` | header | string | Có | Vai trò người gọi. `SUPER_ADMIN` bypass mọi kiểm tra role. Giá trị: `BGH`, `TO_TRUONG`, `GVCN`, `GVBM`, `KE_TOAN`, `VAN_THU`, `PHHS`, `Y_TE`, `NHAN_VIEN_Y_TE`, `BEP_TRUONG`, `SUPER_ADMIN`. |
 
 ### Request body
 
@@ -620,7 +910,7 @@ Lấy thông tin chi tiết của một kế hoạch bài dạy cùng toàn bộ
 |---|---|---|---|---|
 | `id` | path | string | Có | UUID của kế hoạch bài dạy |
 | `X-School-ID` | header | string | Có | UUID của trường (multi-tenancy). Thiếu header này trả 401. |
-| `X-User-Role` | header | string | Có | Vai trò người gọi. `SUPER_ADMIN` bypass mọi kiểm tra role. Giá trị: `BGH`, `TO_TRUONG`, `GVCN`, `GVBM`, `KE_TOAN`, `VAN_THU`, `PHHS`, `SUPER_ADMIN`. |
+| `X-User-Role` | header | string | Có | Vai trò người gọi. `SUPER_ADMIN` bypass mọi kiểm tra role. Giá trị: `BGH`, `TO_TRUONG`, `GVCN`, `GVBM`, `KE_TOAN`, `VAN_THU`, `PHHS`, `Y_TE`, `NHAN_VIEN_Y_TE`, `BEP_TRUONG`, `SUPER_ADMIN`. |
 
 ### Responses
 
@@ -644,7 +934,7 @@ Truy vấn danh sách kế hoạch bài dạy đã nộp, hỗ trợ bộ lọc 
 | Tên | Vị trí | Kiểu | Bắt buộc | Mô tả |
 |---|---|---|---|---|
 | `X-School-ID` | header | string | Có | UUID của trường (multi-tenancy). Thiếu header này trả 401. |
-| `X-User-Role` | header | string | Có | Vai trò người gọi. `SUPER_ADMIN` bypass mọi kiểm tra role. Giá trị: `BGH`, `TO_TRUONG`, `GVCN`, `GVBM`, `KE_TOAN`, `VAN_THU`, `PHHS`, `SUPER_ADMIN`. |
+| `X-User-Role` | header | string | Có | Vai trò người gọi. `SUPER_ADMIN` bypass mọi kiểm tra role. Giá trị: `BGH`, `TO_TRUONG`, `GVCN`, `GVBM`, `KE_TOAN`, `VAN_THU`, `PHHS`, `Y_TE`, `NHAN_VIEN_Y_TE`, `BEP_TRUONG`, `SUPER_ADMIN`. |
 
 ### Responses
 
@@ -667,7 +957,7 @@ Truy vấn lịch thời khóa biểu theo năm học, học kỳ, lớp học h
 | Tên | Vị trí | Kiểu | Bắt buộc | Mô tả |
 |---|---|---|---|---|
 | `X-School-ID` | header | string | Có | UUID của trường (multi-tenancy). Thiếu header này trả 401. |
-| `X-User-Role` | header | string | Có | Vai trò người gọi. `SUPER_ADMIN` bypass mọi kiểm tra role. Giá trị: `BGH`, `TO_TRUONG`, `GVCN`, `GVBM`, `KE_TOAN`, `VAN_THU`, `PHHS`, `SUPER_ADMIN`. |
+| `X-User-Role` | header | string | Có | Vai trò người gọi. `SUPER_ADMIN` bypass mọi kiểm tra role. Giá trị: `BGH`, `TO_TRUONG`, `GVCN`, `GVBM`, `KE_TOAN`, `VAN_THU`, `PHHS`, `Y_TE`, `NHAN_VIEN_Y_TE`, `BEP_TRUONG`, `SUPER_ADMIN`. |
 | `academic_year_id` | query | string | Không |  |
 | `term_id` | query | string | Không |  |
 | `class_id` | query | string | Không |  |
@@ -700,7 +990,7 @@ Role được phép: `BGH`, `TO_TRUONG`, `GVCN`, `GVBM`, `SUPER_ADMIN`.
 | Tên | Vị trí | Kiểu | Bắt buộc | Mô tả |
 |---|---|---|---|---|
 | `X-School-ID` | header | string | Có | UUID của trường (multi-tenancy). Thiếu header này trả 401. |
-| `X-User-Role` | header | string | Có | Vai trò người gọi. `SUPER_ADMIN` bypass mọi kiểm tra role. Giá trị: `BGH`, `TO_TRUONG`, `GVCN`, `GVBM`, `KE_TOAN`, `VAN_THU`, `PHHS`, `SUPER_ADMIN`. |
+| `X-User-Role` | header | string | Có | Vai trò người gọi. `SUPER_ADMIN` bypass mọi kiểm tra role. Giá trị: `BGH`, `TO_TRUONG`, `GVCN`, `GVBM`, `KE_TOAN`, `VAN_THU`, `PHHS`, `Y_TE`, `NHAN_VIEN_Y_TE`, `BEP_TRUONG`, `SUPER_ADMIN`. |
 
 ### Request body
 

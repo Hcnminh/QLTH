@@ -106,6 +106,42 @@ func SetupRouter() *gin.Engine {
 			middleware.RequireRole("BGH", "TO_TRUONG", "GVCN", "GVBM", "PHHS"),
 			h.GetTimetableSlots,
 		)
+
+		// Boarding Menus & 24h Food Sample Retention (Viện Dinh Dưỡng & QĐ 1246/QĐ-BYT)
+		v1.GET("/boarding/menus",
+			middleware.RequireRole("BGH", "KE_TOAN", "GVCN", "GVBM", "PHHS", "Y_TE", "NHAN_VIEN_Y_TE"),
+			h.ListBoardingMenus,
+		)
+		v1.POST("/boarding/menus",
+			middleware.RequireRole("BGH", "KE_TOAN", "Y_TE", "NHAN_VIEN_Y_TE", "BEP_TRUONG"),
+			h.CreateBoardingMenu,
+		)
+		v1.POST("/boarding/menus/:id/sample-retention",
+			middleware.RequireRole("BGH", "Y_TE", "NHAN_VIEN_Y_TE", "BEP_TRUONG"),
+			h.VerifyFoodSampleRetention,
+		)
+
+		// Student Health Profile & Infirmary Diary (BMI, Eyesight, Medical Diary, Prescriptions)
+		v1.GET("/students/:id/health",
+			middleware.RequireRole("BGH", "GVCN", "Y_TE", "NHAN_VIEN_Y_TE", "PHHS"),
+			h.GetStudentHealthProfile,
+		)
+		v1.POST("/students/:id/health",
+			middleware.RequireRole("BGH", "Y_TE", "NHAN_VIEN_Y_TE"),
+			h.RecordStudentHealth,
+		)
+		v1.POST("/students/:id/health/prescriptions",
+			middleware.RequireRole("BGH", "GVCN", "PHHS", "Y_TE", "NHAN_VIEN_Y_TE"),
+			h.AddPrescriptionDelivery,
+		)
+		v1.POST("/students/:id/health/prescriptions/:rx_id/administer",
+			middleware.RequireRole("BGH", "Y_TE", "NHAN_VIEN_Y_TE"),
+			h.AdministerPrescription,
+		)
+		v1.POST("/students/:id/health/medical-events",
+			middleware.RequireRole("BGH", "Y_TE", "NHAN_VIEN_Y_TE"),
+			h.AddMedicalEvent,
+		)
 	}
 
 	return r

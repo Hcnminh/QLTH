@@ -11,8 +11,10 @@ import (
 	"time"
 
 	"qlth/internal/core/assessment"
+	"qlth/internal/core/boarding"
 	"qlth/internal/core/curriculum"
 	"qlth/internal/core/domain"
+	"qlth/internal/core/health"
 	"qlth/internal/core/kpi"
 	"qlth/internal/core/teaching"
 	"qlth/internal/db"
@@ -27,10 +29,18 @@ type APIHandler struct {
 	stratRegistry    *assessment.Registry
 	lessonPlanEngine *curriculum.LessonPlanEngine
 	timetableEngine  *curriculum.TimetableEngine
+	boardingEngine   *boarding.NutritionEngine
+	healthEngine     *health.Engine
 	planStoreMu      sync.RWMutex
 	planStore        map[uuid.UUID]*curriculum.LessonPlan
 	timetableStoreMu sync.RWMutex
 	timetableStore   map[uuid.UUID]curriculum.TimetableSlot
+	menuStoreMu      sync.RWMutex
+	menuStore        map[uuid.UUID]*domain.BoardingMenu
+	healthStoreMu    sync.RWMutex
+	healthStore      map[uuid.UUID]*health.StudentHealthProfile
+	rxStoreMu        sync.RWMutex
+	rxStore          map[uuid.UUID][]*health.PrescriptionItem
 }
 
 func NewAPIHandler() *APIHandler {
@@ -40,8 +50,13 @@ func NewAPIHandler() *APIHandler {
 		stratRegistry:    assessment.NewRegistry(),
 		lessonPlanEngine: curriculum.NewLessonPlanEngine(),
 		timetableEngine:  curriculum.NewTimetableEngine(),
+		boardingEngine:   boarding.NewNutritionEngine(),
+		healthEngine:     health.NewEngine(),
 		planStore:        make(map[uuid.UUID]*curriculum.LessonPlan),
 		timetableStore:   make(map[uuid.UUID]curriculum.TimetableSlot),
+		menuStore:        make(map[uuid.UUID]*domain.BoardingMenu),
+		healthStore:      make(map[uuid.UUID]*health.StudentHealthProfile),
+		rxStore:          make(map[uuid.UUID][]*health.PrescriptionItem),
 	}
 }
 

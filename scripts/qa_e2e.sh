@@ -303,6 +303,45 @@ grep -q 'Thông tư 05/2025/TT-BGDĐT' "$LOG_DIR/last-response.json" \
   && log_case "timetable-conflict-citation" 0 0 "(báo lỗi xung đột lịch dạy TT 05/2025 chuẩn xác)" \
   || log_case "timetable-conflict-citation" 0 1 "không viện dẫn Thông tư 05/2025 trong lỗi xung đột"
 
+# --- 11. Bán trú, Dinh dưỡng Viện Dinh Dưỡng, Lưu mẫu 24h & Hồ sơ Y tế (BMI) ---
+# Lấy danh sách thực đơn bán trú kèm phân tích dinh dưỡng chuẩn Viện Dinh Dưỡng
+http_case "boarding-menus-nutrition-breakdown" GET "/api/v1/boarding/menus" \
+  "-" 200 "BGH"
+grep -q 'Viện Dinh dưỡng Quốc gia' "$LOG_DIR/last-response.json" \
+  && log_case "boarding-nutrition-guidelines" 0 0 "(phân tích dinh dưỡng chuẩn Viện Dinh Dưỡng)" \
+  || log_case "boarding-nutrition-guidelines" 0 1 "không có phân tích chuẩn Viện Dinh Dưỡng"
+
+# Lập thực đơn bán trú mới tự động tính Kcal & cân bằng P:L:G -> 201 Created
+http_case "boarding-menu-create-plan" POST "/api/v1/boarding/menus" \
+  '{"menu_date":"2026-10-30","meal_type":"LUNCH","dishes":[{"name":"Thịt heo hầm đậu hũ","weight_g":120,"protein_g":22,"lipid_g":18,"glucid_g":5},{"name":"Canh rau ngót tôm tươi","weight_g":150,"protein_g":6,"lipid_g":2,"glucid_g":8},{"name":"Cơm tấm gạo tám","weight_g":180,"protein_g":5,"lipid_g":0.5,"glucid_g":75}],"sample_retention_verified":true}' \
+  201 "KE_TOAN"
+MENU_ID=$(python3 -c 'import json; d=json.load(open("'$LOG_DIR'/last-response.json")); print(d.get("data",{}).get("id",""))')
+
+# Xác nhận kiểm tra lưu mẫu thức ăn 24h theo QĐ 1246/QĐ-BYT -> 200 OK
+http_case "boarding-sample-retention-verify" POST "/api/v1/boarding/menus/${MENU_ID}/sample-retention" \
+  '{"sampled_at":"2026-10-29T11:00:00Z","storage_temperature":4.0,"keeper_name":"Đặng Thị Mai (Y tế bán trú)"}' \
+  200 "Y_TE"
+grep -q '1246/QĐ-BYT' "$LOG_DIR/last-response.json" \
+  && log_case "boarding-sample-retention-rule" 0 0 "(kiểm tra lưu mẫu 24h QĐ 1246/QĐ-BYT đạt)" \
+  || log_case "boarding-sample-retention-rule" 0 1 "không xác nhận QĐ 1246/QĐ-BYT"
+
+# Lấy hồ sơ sức khỏe điện tử học sinh (BMI, thị lực, nha, bệnh mãn tính) -> 200 OK
+http_case "student-health-profile-get" GET "/api/v1/students/c0000000-0000-0000-0000-000000000001/health" \
+  "-" 200 "GVCN"
+grep -q '"bmi":' "$LOG_DIR/last-response.json" && grep -q '"bmi_category":' "$LOG_DIR/last-response.json" \
+  && log_case "student-health-bmi-calculated" 0 0 "(tính toán BMI và phân loại thể trạng)" \
+  || log_case "student-health-bmi-calculated" 0 1 "thiếu chỉ số BMI hoặc phân loại"
+
+# Phụ huynh gửi đơn thuốc nhờ cô y tế cho uống tại trường -> 201 Created
+http_case "student-health-prescription-add" POST "/api/v1/students/c0000000-0000-0000-0000-000000000001/health/prescriptions" \
+  '{"medication_name":"Siro ho Astex","dosage":"5ml sau ăn trưa","administration_time":"12:30","instructions":"Uống cùng nước ấm","parent_notes":"Cháu ho dị ứng thời tiết"}' \
+  201 "PHHS"
+
+# Ghi nhật ký y tế và xử trí sơ cấp cứu tại phòng y tế -> 201 Created
+http_case "student-health-medical-event-add" POST "/api/v1/students/c0000000-0000-0000-0000-000000000001/health/medical-events" \
+  '{"event_type":"SƠ_CẤP_CỨU","symptoms":"Trầy da nhẹ ở đầu gối do chạy ngã","treatment":"Rửa nước muối sinh lý, sát khuẩn Betadine và dán gạc cá nhân","parent_notified":true}' \
+  201 "Y_TE"
+
 # ---------------------------------------------------------------- REPORT
 echo
 echo "== KẾT QUẢ =="
