@@ -266,3 +266,97 @@ func TestStaffTableDisplayAndFiltering(t *testing.T) {
 		t.Errorf("expected filtered body to contain GV001")
 	}
 }
+
+// VAL-CRUD-002: Student & Digital Consent Table Display and Child Data Privacy Compliance
+func TestStudentTableDisplayAndConsentStatus(t *testing.T) {
+	r := setupTestAdmin(t)
+
+	// 1. Authenticate to get session cookie
+	formVals := url.Values{}
+	formVals.Add("username", "admin")
+	formVals.Add("password", "admin")
+
+	loginReq, _ := http.NewRequest(http.MethodPost, "/admin/signin", strings.NewReader(formVals.Encode()))
+	loginReq.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	loginW := httptest.NewRecorder()
+	r.ServeHTTP(loginW, loginReq)
+
+	var sessionCookie *http.Cookie
+	for _, c := range loginW.Result().Cookies() {
+		if c.Name == "go_admin_session" {
+			sessionCookie = c
+			break
+		}
+	}
+	if sessionCookie == nil {
+		t.Fatal("session cookie missing")
+	}
+
+	// 2. GET /admin/info/students renders student table with consent fields
+	req, _ := http.NewRequest(http.MethodGet, "/admin/info/students", nil)
+	req.AddCookie(sessionCookie)
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected status 200 for /admin/info/students, got %d. Body: %s", w.Code, w.Body.String())
+	}
+
+	body := w.Body.String()
+
+	// Check table columns
+	expectedColumns := []string{"Student Code", "Full Name", "Digital Consent", "Consent Verified"}
+	for _, col := range expectedColumns {
+		if !strings.Contains(body, col) {
+			t.Errorf("expected column '%s' to be present in student table view HTML", col)
+		}
+	}
+
+	// Check seeded student records
+	expectedData := []string{"Nguyễn Hoàng Nam", "HS2026001", "Trần Mai Linh", "HS2026002", "Lê Quốc Bảo", "HS2026003"}
+	for _, d := range expectedData {
+		if !strings.Contains(body, d) {
+			t.Errorf("expected seed student '%s' to be present in table view HTML", d)
+		}
+	}
+
+	// Check visual indicator of Decree 13 compliance
+	if !strings.Contains(body, "Tuân thủ NĐ 13") {
+		t.Errorf("expected visual compliance indicator 'Tuân thủ NĐ 13' in table view HTML")
+	}
+	if !strings.Contains(body, "Chưa tuân thủ NĐ 13") {
+		t.Errorf("expected visual non-compliance indicator 'Chưa tuân thủ NĐ 13' for unverified student in table view HTML")
+	}
+
+	// 3. GET /admin/info/students/new renders new student form
+	formReq, _ := http.NewRequest(http.MethodGet, "/admin/info/students/new", nil)
+	formReq.AddCookie(sessionCookie)
+	formW := httptest.NewRecorder()
+	r.ServeHTTP(formW, formReq)
+
+	if formW.Code != http.StatusOK {
+		t.Fatalf("expected status 200 for /admin/info/students/new, got %d", formW.Code)
+	}
+
+	formBody := formW.Body.String()
+	for _, expectedFormField := range []string{"student_code", "full_name", "guardian_name", "has_digital_consent", "digital_consent_verified"} {
+		if !strings.Contains(formBody, expectedFormField) {
+			t.Errorf("expected field '%s' in new student form HTML", expectedFormField)
+		}
+	}
+
+	// 4. Filter query: ?student_code=HS2026001
+	filterReq, _ := http.NewRequest(http.MethodGet, "/admin/info/students?student_code=HS2026001", nil)
+	filterReq.AddCookie(sessionCookie)
+	filterW := httptest.NewRecorder()
+	r.ServeHTTP(filterW, filterReq)
+
+	if filterW.Code != http.StatusOK {
+		t.Fatalf("expected status 200 for filtered /admin/info/students, got %d", filterW.Code)
+	}
+
+	filterBody := filterW.Body.String()
+	if !strings.Contains(filterBody, "HS2026001") || !strings.Contains(filterBody, "Nguyễn Hoàng Nam") {
+		t.Errorf("expected filtered student body to contain HS2026001 and Nguyễn Hoàng Nam")
+	}
+}
