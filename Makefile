@@ -1,4 +1,4 @@
-.PHONY: all deps build test test-browser qa run lint fmt-check docs clean docker-up docker-down db-init db-test
+.PHONY: all deps build test test-browser qa run lint fmt-check docs docs-check brochure clean docker-up docker-down db-init db-test
 
 all: build test
 
@@ -35,7 +35,11 @@ lint:
 	elif [ -x "$$HOME/go/bin/golangci-lint" ]; then "$$HOME/go/bin/golangci-lint" run ./...; \
 	else echo "golangci-lint chưa cài — bỏ qua (CI vẫn chạy đầy đủ)"; fi
 
-docs:
+brochure:
+	python3 scripts/generate_brochure_docx.py
+	python3 scripts/generate_brochure_pdf.py
+
+docs: brochure
 	python3 scripts/validate_openapi.py
 	python3 scripts/generate_api_docs.py
 	python3 scripts/validate_doc_refs.py

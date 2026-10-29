@@ -86,6 +86,25 @@ def validate_markdown_file(file_path: Path) -> None:
                     fail(f"{file_path.name}:{line_num}: Unresolved internal anchor link '#{anchor}'")
 
 
+def validate_brochures() -> None:
+    docx_path = DOCS_DIR / "brochure-qlth-kpi.docx"
+    pdf_path = DOCS_DIR / "brochure-qlth-kpi.pdf"
+
+    if not docx_path.exists():
+        fail(f"Required brochure Word document not found: {docx_path}")
+    elif docx_path.stat().st_size < 50 * 1024:
+        fail(f"Brochure Word document is too small ({docx_path.stat().st_size} bytes, expected > 50KB)")
+    else:
+        print(f"  - Verified {docx_path.name}: {docx_path.stat().st_size:,} bytes (> 50KB)")
+
+    if not pdf_path.exists():
+        fail(f"Required brochure PDF document not found: {pdf_path}")
+    elif pdf_path.stat().st_size < 50 * 1024:
+        fail(f"Brochure PDF document is too small ({pdf_path.stat().st_size} bytes, expected > 50KB)")
+    else:
+        print(f"  - Verified {pdf_path.name}: {pdf_path.stat().st_size:,} bytes (> 50KB)")
+
+
 def main() -> int:
     manual_path = DOCS_DIR / "huong-dan-su-dung.md"
     if not manual_path.exists():
@@ -93,7 +112,9 @@ def main() -> int:
     else:
         validate_markdown_file(manual_path)
 
-    print(f"Validated documentation references in {manual_path.name}:")
+    validate_brochures()
+
+    print(f"Validated documentation references in {manual_path.name} & collateral brochures:")
     print(f"  - Status: {'FAILED' if errors else 'PASSED'}")
     print(f"  - Errors: {len(errors)}")
     print(f"  - Warnings: {len(warnings)}")

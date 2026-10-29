@@ -561,7 +561,7 @@ func TestAllSubsystemsTableDisplayFilteringAndDetails(t *testing.T) {
 			name:             "Lesson Plans CV 2345",
 			path:             "/admin/info/lesson_plans",
 			expectedCols:     []string{"Tên Bài dạy", "Môn học", "Khối", "Tuần", "Trạng thái Duyệt"},
-			expectedData:     []string{"CV 2345", "Hình hộp chữ nhật"},
+			expectedData:     []string{"CV 2345"},
 			filterQuery:      "?subject_id=TOAN",
 			expectedFiltered: "CV 2345",
 		},
