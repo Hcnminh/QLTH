@@ -47,6 +47,7 @@ curl -s http://localhost:8080/health
 | `make deps` | Tải Go modules |
 | `make build` | Biên dịch ra `bin/api` |
 | `make test` | Chạy toàn bộ unit + integration test |
+| `make test-browser` | Chạy kiểm thử tự động trình duyệt E2E (Playwright) trên GoAdmin |
 | `make qa` | Chạy kiểm thử tương tác end-to-end (QA harness 26 ca) |
 | `make lint` | Chạy `go vet`, `gofmt` check và `golangci-lint` |
 | `make run` | Chạy API server ở cổng 8098 (hoặc qua biến `PORT`) |
@@ -97,6 +98,38 @@ curl -s -X POST http://localhost:8080/api/v1/teaching/calculate-quota \
 - Runbook vận hành & xử lý sự cố: [`docs/runbooks/`](docs/runbooks/)
 - Hướng dẫn triển khai VPS (Podman/Traefik): `HUONG-DAN-HA-TANG-VA-TRIEN-KHAI-VPS1.md`
 - Biến môi trường: xem [`.env.example`](.env.example)
+
+## Giao diện Quản trị & Kiểm thử Trình duyệt (Browser QA)
+
+Hệ thống tích hợp bảng điều khiển quản trị trực quan **GoAdmin** tại `/admin`, cung cấp giao diện tương tác cho cán bộ quản lý trường học và giáo viên.
+
+### Kiểm thử tự động E2E với Playwright
+
+Chạy bộ kiểm thử tự động trình duyệt bằng lệnh:
+
+```bash
+make test-browser
+```
+
+Bộ kiểm thử [`scripts/qa_browser.js`](scripts/qa_browser.js) sử dụng Playwright headless Chromium để tự động xác thực:
+1. **Kiểm tra sức khỏe hệ thống**: Endpoint công khai `GET /health`.
+2. **Quy trình xác thực**: Đăng nhập qua `/admin/login` với tài khoản quản trị mặc định (`admin` / `admin`).
+3. **Bảng điều khiển trung tâm (Dashboard)**: Kiểm tra nhận diện thương hiệu EduPrimary-KPI và các menu nghiệp vụ.
+4. **Quản lý Giáo viên & Định mức (TT 05/2025/TT-BGDĐT)**: Kiểm tra bảng `/admin/info/staffs`, chuẩn 805 tiết/năm và giảm 4 tiết/tuần cho GVCN.
+5. **Hồ sơ Học sinh & Consent (NĐ 13/2023/NĐ-CP)**: Kiểm tra bảng `/admin/info/students`, định danh VNeID và trạng thái đồng thuận kỹ thuật số của phụ huynh.
+6. **Đánh giá KPI 360 & Xếp loại Thi đua (NĐ 90/2020 & NĐ 48/2023)**: Kiểm tra bảng `/admin/info/kpi_evaluations`, tính điểm 4 chiều (40-30-15-15) và thực thi trần 20% danh hiệu Hoàn thành xuất sắc.
+
+### Ảnh chụp màn hình giao diện (Visual Screenshots)
+
+Bộ ảnh chụp trực quan độ phân giải cao được lưu trữ tại thư mục [`docs/screenshots/`](docs/screenshots/):
+
+| Phân hệ / Màn hình | Tệp hình ảnh | Mô tả |
+|---|---|---|
+| **Đăng nhập Quản trị** | [`01_login_page.png`](docs/screenshots/01_login_page.png) | Giao diện đăng nhập hệ thống EduPrimary-KPI GoAdmin |
+| **Bảng điều khiển (Dashboard)** | [`02_dashboard.png`](docs/screenshots/02_dashboard.png) | Trung tâm điều hành chỉ số giáo viên, học sinh, KPI và RBAC |
+| **Giáo viên & Định mức** | [`03_staff_table.png`](docs/screenshots/03_staff_table.png) | Quản lý giáo viên, phân công GVCN và định mức theo TT 05/2025 |
+| **Học sinh & Consent NĐ 13** | [`04_student_table.png`](docs/screenshots/04_student_table.png) | Hồ sơ học sinh và trạng thái bảo vệ dữ liệu trẻ em NĐ 13/2023 |
+| **Đánh giá KPI 360** | [`05_kpi_table.png`](docs/screenshots/05_kpi_table.png) | Bảng tổng hợp KPI 360 độ, xếp loại thi đua và khống chế trần 20% |
 
 ## Tài liệu dự án
 
