@@ -5,6 +5,8 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
+	"strings"
 	"testing"
 
 	"qlth/internal/core/domain"
@@ -233,4 +235,81 @@ func TestRBAC_UnauthorizedRole(t *testing.T) {
 	if w.Code != http.StatusForbidden {
 		t.Fatalf("expected 403 Forbidden for Parent accessing KPI batch, got %d", w.Code)
 	}
+}
+
+func TestAdminEndpoints_Integration(t *testing.T) {
+	router := SetupRouter()
+
+	// 1. VAL-ADM-002: GET /admin/login returns 200 with AdminLTE login interface
+	t.Run("GET /admin/login returns 200 with login fields", func(t *testing.T) {
+		req, _ := http.NewRequest(http.MethodGet, "/admin/login", nil)
+		w := httptest.NewRecorder()
+		router.ServeHTTP(w, req)
+
+		if w.Code != http.StatusOK {
+			t.Fatalf("expected 200 OK from /admin/login, got %d", w.Code)
+		}
+		body := w.Body.String()
+		if !strings.Contains(body, "username") || !strings.Contains(body, "password") {
+			t.Fatalf("expected login fields in html, got: %s", body)
+		}
+	})
+
+	// 2. Unauthenticated GET /admin redirects to /admin/login
+	t.Run("GET /admin redirects to /admin/login", func(t *testing.T) {
+		req, _ := http.NewRequest(http.MethodGet, "/admin", nil)
+		w := httptest.NewRecorder()
+		router.ServeHTTP(w, req)
+
+		if w.Code != http.StatusFound {
+			t.Fatalf("expected 302 redirect from /admin, got %d", w.Code)
+		}
+		loc := w.Header().Get("Location")
+		if !strings.Contains(loc, "/admin/login") {
+			t.Fatalf("expected redirect to /admin/login, got: %s", loc)
+		}
+	})
+
+	// 3. VAL-ADM-003: POST /admin/signin with valid admin credentials
+	t.Run("POST /admin/signin authenticates and redirects to /admin", func(t *testing.T) {
+		form := url.Values{}
+		form.Add("username", "admin")
+		form.Add("password", "admin")
+
+		req, _ := http.NewRequest(http.MethodPost, "/admin/signin", strings.NewReader(form.Encode()))
+		req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+		w := httptest.NewRecorder()
+		router.ServeHTTP(w, req)
+
+		if w.Code != http.StatusOK {
+			t.Fatalf("expected 200 OK from /admin/signin, got %d (body: %s)", w.Code, w.Body.String())
+		}
+
+		var resp struct {
+			Code int                    `json:"code"`
+			Msg  string                 `json:"msg"`
+			Data map[string]interface{} `json:"data"`
+		}
+		if err := json.Unmarshal(w.Body.Bytes(), &resp); err != nil {
+			t.Fatalf("failed to decode signin response: %v", err)
+		}
+		if resp.Code != 200 {
+			t.Fatalf("expected code 200, got %d", resp.Code)
+		}
+		if resp.Data["url"] != "/admin" {
+			t.Fatalf("expected redirect to /admin, got %v", resp.Data["url"])
+		}
+
+		// Check session cookie
+		hasCookie := false
+		for _, c := range w.Result().Cookies() {
+			if c.Name == "go_admin_session" {
+				hasCookie = true
+				break
+			}
+		}
+		if !hasCookie {
+			t.Fatal("expected go_admin_session cookie to be returned")
+		}
+	})
 }

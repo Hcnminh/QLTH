@@ -1,6 +1,9 @@
 package api
 
 import (
+	"log"
+
+	"qlth/internal/admin"
 	"qlth/internal/api/handlers"
 	"qlth/internal/api/middleware"
 
@@ -10,6 +13,11 @@ import (
 // SetupRouter sets up Gin engine and registers all routes
 func SetupRouter() *gin.Engine {
 	r := gin.Default()
+
+	// Mount GoAdmin Web Interface at /admin
+	if _, err := admin.InitAdmin(r); err != nil {
+		log.Printf("Warning: failed to initialize GoAdmin: %v", err)
+	}
 
 	h := handlers.NewAPIHandler()
 
