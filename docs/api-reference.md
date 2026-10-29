@@ -38,6 +38,9 @@ Vai trò hợp lệ: `BGH`, `TO_TRUONG`, `GVCN`, `GVBM`, `KE_TOAN`, `VAN_THU`, `
 
 | Method | Path | Tóm tắt |
 |---|---|---|
+| `GET` | [`/api/v1/lesson-plans`](#listlessonplans) | Danh sách kế hoạch bài dạy của trường |
+| `GET` | [`/api/v1/lesson-plans/{id}`](#getlessonplan) | Chi tiết kế hoạch bài dạy và lịch sử góp ý |
+| `GET` | [`/api/v1/timetable/slots`](#gettimetableslots) | Lấy danh sách các tiết thời khóa biểu |
 | `GET` | [`/health`](#gethealth) | Health check |
 | `POST` | [`/api/v1/boarding/cancel-meal`](#cancelboardingmeal) | Báo hủy suất ăn bán trú và xác định hoàn tiền |
 | `POST` | [`/api/v1/evaluations/ai-copilot`](#aipedagogicalcopilot) | Trợ lý sư phạm gợi ý nhận xét học sinh |
@@ -45,8 +48,11 @@ Vai trò hợp lệ: `BGH`, `TO_TRUONG`, `GVCN`, `GVBM`, `KE_TOAN`, `VAN_THU`, `
 | `POST` | [`/api/v1/evaluations/subject-scores`](#recordsubjectscore) | Nhập đánh giá kết quả học tập môn học |
 | `POST` | [`/api/v1/kpi/evaluate-individual`](#evaluateindividualkpi) | Đánh giá KPI 360 độ cho một cán bộ/giáo viên |
 | `POST` | [`/api/v1/kpi/evaluate-school-batch`](#evaluateschoolbatchkpi) | Xếp loại KPI toàn trường kèm trần 20% xuất sắc |
+| `POST` | [`/api/v1/lesson-plans/submit`](#submitlessonplan) | Nộp kế hoạch bài dạy (CV 2345 / STEM TT 86) |
+| `POST` | [`/api/v1/lesson-plans/{id}/approve`](#approvelessonplan) | Phê duyệt hoặc góp ý kế hoạch bài dạy phân tầng |
 | `POST` | [`/api/v1/students/onboard`](#onboardstudent) | Tiếp nhận hồ sơ học sinh (tuyển sinh đầu cấp) |
 | `POST` | [`/api/v1/teaching/calculate-quota`](#calculateteachingquota) | Tính định mức tiết dạy và số tiết thừa giờ |
+| `POST` | [`/api/v1/timetable/slots`](#configuretimetableslot) | Cấu hình tiết thời khóa biểu và kiểm soát không trùng lịch |
 | `POST` | [`/api/v1/transcripts/generate`](#generatetranscriptsnapshot) | Xuất snapshot học bạ số bất biến kèm giải quyết quy định TT 27 vs TT 89 |
 
 ## system
@@ -503,5 +509,224 @@ Role được phép: `BGH`, `VAN_THU`, `SUPER_ADMIN`.
 | `401` | Thiếu header X-School-ID |
 | `403` | Role không được phép truy cập endpoint này |
 | `422` | Thiếu sự đồng thuận số của cha mẹ/người giám hộ (NĐ 13/2023 Điều 20) |
+
+---
+
+## curriculum
+
+Quản lý kế hoạch bài dạy (CV 2345/STEM TT 86) và xếp thời khóa biểu (TT 05/2025)
+
+### `POST /api/v1/lesson-plans/submit`
+
+<a id="submitlessonplan"></a>
+
+**Nộp kế hoạch bài dạy (CV 2345 / STEM TT 86)**
+
+Nộp kế hoạch bài dạy điện tử (giáo án) tuân thủ:
+- **Công văn 2345/BGDĐT-GDTH** (4 bước hoạt động: Khởi động, Khám phá, Luyện tập, Vận dụng; 3 mục tiêu: Kiến thức, Năng lực, Phẩm chất).
+- **Thông tư 86/BGDĐT & CV 909/BGDĐT-GDTH** (giáo dục STEM tiểu học).
+- Giới hạn từ tuần 1 đến tuần 35 theo Thông tư 05/2025/TT-BGDĐT.
+- Khởi tạo trạng thái `SUBMITTED` (hoặc `DRAFT` nếu bật cờ lưu nháp).
+
+Role được phép: `BGH`, `TO_TRUONG`, `GVCN`, `GVBM`, `GV`, `SUPER_ADMIN`.
+
+| Tên | Vị trí | Kiểu | Bắt buộc | Mô tả |
+|---|---|---|---|---|
+| `X-School-ID` | header | string | Có | UUID của trường (multi-tenancy). Thiếu header này trả 401. |
+| `X-User-Role` | header | string | Có | Vai trò người gọi. `SUPER_ADMIN` bypass mọi kiểm tra role. Giá trị: `BGH`, `TO_TRUONG`, `GVCN`, `GVBM`, `KE_TOAN`, `VAN_THU`, `PHHS`, `SUPER_ADMIN`. |
+
+### Request body
+
+| Trường | Kiểu | Bắt buộc | Mô tả |
+|---|---|---|---|
+| `school_id` | string (uuid) | Không |  |
+| `teacher_id` | string (uuid) | Có |  |
+| `teacher_name` | string | Không |  |
+| `class_id` | string (uuid) | Không |  |
+| `grade_level` | integer | Có |  |
+| `subject_id` | string | Có |  |
+| `title` | string | Có |  |
+| `week_number` | integer | Có |  |
+| `duration_slots` | integer | Không |  |
+| `curriculum_standard` | string | Không |  Giá trị: `CV_2345`, `STEM_TT_86`. |
+| `objectives` | object | Không |  |
+| `equipment` | string | Không |  |
+| `activities` | array<object> | Không |  |
+| `attachment_url` | string | Không |  |
+| `is_draft` | boolean | Không |  |
+
+### Responses
+
+| Mã | Mô tả |
+|---|---|
+| `201` | Nộp kế hoạch bài dạy thành công |
+| `400` | Dữ liệu đầu vào không hợp lệ |
+| `401` | Thiếu header X-School-ID |
+| `403` | Role không được phép truy cập endpoint này |
+
+---
+
+### `POST /api/v1/lesson-plans/{id}/approve`
+
+<a id="approvelessonplan"></a>
+
+**Phê duyệt hoặc góp ý kế hoạch bài dạy phân tầng**
+
+Quy trình thẩm định phân tầng:
+- **Tổ trưởng chuyên môn (TO_TRUONG)**: Duyệt bước 1 chuyển trạng thái sang `DEPARTMENT_HEAD_APPROVED`.
+- **Ban Giám hiệu (BGH)**: Duyệt hoàn tất chuyển trạng thái sang `APPROVED` kèm chữ ký số SmartCA/TSA.
+- Khi từ chối (`REJECT`) hoặc yêu cầu sửa (`REQUEST_REVISION`): bắt buộc nhập `comments` góp ý sư phạm.
+
+Role được phép: `BGH`, `TO_TRUONG`, `SUPER_ADMIN`.
+
+| Tên | Vị trí | Kiểu | Bắt buộc | Mô tả |
+|---|---|---|---|---|
+| `id` | path | string | Có | UUID của kế hoạch bài dạy |
+| `X-School-ID` | header | string | Có | UUID của trường (multi-tenancy). Thiếu header này trả 401. |
+| `X-User-Role` | header | string | Có | Vai trò người gọi. `SUPER_ADMIN` bypass mọi kiểm tra role. Giá trị: `BGH`, `TO_TRUONG`, `GVCN`, `GVBM`, `KE_TOAN`, `VAN_THU`, `PHHS`, `SUPER_ADMIN`. |
+
+### Request body
+
+| Trường | Kiểu | Bắt buộc | Mô tả |
+|---|---|---|---|
+| `action` | string | Có |  Giá trị: `APPROVE`, `REJECT`, `REQUEST_REVISION`. |
+| `reviewer_id` | string (uuid) | Không |  |
+| `reviewer_role` | string | Không |  Giá trị: `TO_TRUONG`, `BGH`, `SUPER_ADMIN`. |
+| `reviewer_name` | string | Không |  |
+| `comments` | string | Không | Ý kiến nhận xét, góp ý sư phạm (bắt buộc khi REJECT hoặc REQUEST_REVISION) |
+| `digital_signature` | string | Không |  |
+
+### Responses
+
+| Mã | Mô tả |
+|---|---|
+| `200` | Phê duyệt hoặc góp ý kế hoạch bài dạy thành công |
+| `400` | Dữ liệu đầu vào không hợp lệ |
+| `401` | Thiếu header X-School-ID |
+| `403` | Role không được phép truy cập endpoint này |
+| `404` | Không tìm thấy kế hoạch bài dạy |
+
+---
+
+### `GET /api/v1/lesson-plans/{id}`
+
+<a id="getlessonplan"></a>
+
+**Chi tiết kế hoạch bài dạy và lịch sử góp ý**
+
+Lấy thông tin chi tiết của một kế hoạch bài dạy cùng toàn bộ lịch sử duyệt và ý kiến nhận xét của tổ chuyên môn và Ban Giám hiệu.
+
+| Tên | Vị trí | Kiểu | Bắt buộc | Mô tả |
+|---|---|---|---|---|
+| `id` | path | string | Có | UUID của kế hoạch bài dạy |
+| `X-School-ID` | header | string | Có | UUID của trường (multi-tenancy). Thiếu header này trả 401. |
+| `X-User-Role` | header | string | Có | Vai trò người gọi. `SUPER_ADMIN` bypass mọi kiểm tra role. Giá trị: `BGH`, `TO_TRUONG`, `GVCN`, `GVBM`, `KE_TOAN`, `VAN_THU`, `PHHS`, `SUPER_ADMIN`. |
+
+### Responses
+
+| Mã | Mô tả |
+|---|---|
+| `200` | Lấy chi tiết kế hoạch bài dạy thành công |
+| `401` | Thiếu header X-School-ID |
+| `403` | Role không được phép truy cập endpoint này |
+| `404` | Không tìm thấy kế hoạch bài dạy |
+
+---
+
+### `GET /api/v1/lesson-plans`
+
+<a id="listlessonplans"></a>
+
+**Danh sách kế hoạch bài dạy của trường**
+
+Truy vấn danh sách kế hoạch bài dạy đã nộp, hỗ trợ bộ lọc theo môn học, giáo viên, trạng thái duyệt.
+
+| Tên | Vị trí | Kiểu | Bắt buộc | Mô tả |
+|---|---|---|---|---|
+| `X-School-ID` | header | string | Có | UUID của trường (multi-tenancy). Thiếu header này trả 401. |
+| `X-User-Role` | header | string | Có | Vai trò người gọi. `SUPER_ADMIN` bypass mọi kiểm tra role. Giá trị: `BGH`, `TO_TRUONG`, `GVCN`, `GVBM`, `KE_TOAN`, `VAN_THU`, `PHHS`, `SUPER_ADMIN`. |
+
+### Responses
+
+| Mã | Mô tả |
+|---|---|
+| `200` | Lấy danh sách thành công |
+| `401` | Thiếu header X-School-ID |
+| `403` | Role không được phép truy cập endpoint này |
+
+---
+
+### `GET /api/v1/timetable/slots`
+
+<a id="gettimetableslots"></a>
+
+**Lấy danh sách các tiết thời khóa biểu**
+
+Truy vấn lịch thời khóa biểu theo năm học, học kỳ, lớp học hoặc giáo viên.
+
+| Tên | Vị trí | Kiểu | Bắt buộc | Mô tả |
+|---|---|---|---|---|
+| `X-School-ID` | header | string | Có | UUID của trường (multi-tenancy). Thiếu header này trả 401. |
+| `X-User-Role` | header | string | Có | Vai trò người gọi. `SUPER_ADMIN` bypass mọi kiểm tra role. Giá trị: `BGH`, `TO_TRUONG`, `GVCN`, `GVBM`, `KE_TOAN`, `VAN_THU`, `PHHS`, `SUPER_ADMIN`. |
+| `academic_year_id` | query | string | Không |  |
+| `term_id` | query | string | Không |  |
+| `class_id` | query | string | Không |  |
+| `teacher_id` | query | string | Không |  |
+
+### Responses
+
+| Mã | Mô tả |
+|---|---|
+| `200` | Lấy danh sách thành công |
+| `401` | Thiếu header X-School-ID |
+| `403` | Role không được phép truy cập endpoint này |
+
+---
+
+### `POST /api/v1/timetable/slots`
+
+<a id="configuretimetableslot"></a>
+
+**Cấu hình tiết thời khóa biểu và kiểm soát không trùng lịch**
+
+Cấu hình tiết thời khóa biểu:
+- Đảm bảo **không trùng lịch giảng dạy của giáo viên** giữa các lớp khác nhau tại cùng thứ/tiết theo **Thông tư 05/2025/TT-BGDĐT**.
+- Đảm bảo một lớp không bị xếp 2 môn học đồng thời.
+- Đảm bảo một phòng chức năng không bị trùng lịch sử dụng.
+- Trả về `409 Conflict` nếu phát hiện xung đột lịch.
+
+Role được phép: `BGH`, `TO_TRUONG`, `GVCN`, `GVBM`, `SUPER_ADMIN`.
+
+| Tên | Vị trí | Kiểu | Bắt buộc | Mô tả |
+|---|---|---|---|---|
+| `X-School-ID` | header | string | Có | UUID của trường (multi-tenancy). Thiếu header này trả 401. |
+| `X-User-Role` | header | string | Có | Vai trò người gọi. `SUPER_ADMIN` bypass mọi kiểm tra role. Giá trị: `BGH`, `TO_TRUONG`, `GVCN`, `GVBM`, `KE_TOAN`, `VAN_THU`, `PHHS`, `SUPER_ADMIN`. |
+
+### Request body
+
+| Trường | Kiểu | Bắt buộc | Mô tả |
+|---|---|---|---|
+| `school_id` | string (uuid) | Không |  |
+| `academic_year_id` | string | Có |  |
+| `term_id` | string | Có |  |
+| `class_id` | string (uuid) | Có |  |
+| `class_name` | string | Không |  |
+| `teacher_id` | string (uuid) | Có |  |
+| `teacher_name` | string | Không |  |
+| `subject_id` | string | Có |  |
+| `day_of_week` | integer | Có | Thứ trong tuần (2=Thứ Hai, 6=Thứ Sáu, 7=Thứ Bảy) |
+| `period` | integer | Có | Tiết học trong ngày (1-5 sáng, 6-10 chiều) |
+| `room_number` | string | Không |  |
+| `week_number` | integer | Không | 0 cho cả học kỳ, hoặc số tuần cụ thể |
+
+### Responses
+
+| Mã | Mô tả |
+|---|---|
+| `201` | Cấu hình tiết thời khóa biểu thành công |
+| `400` | Dữ liệu đầu vào không hợp lệ |
+| `401` | Thiếu header X-School-ID |
+| `403` | Role không được phép truy cập endpoint này |
+| `409` | Phát hiện xung đột thời khóa biểu vi phạm Thông tư 05/2025/TT-BGDĐT |
 
 ---

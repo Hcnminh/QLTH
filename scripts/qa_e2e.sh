@@ -263,6 +263,46 @@ http_case "super-admin-bypass" POST "/api/v1/kpi/evaluate-individual" \
   '{"staff_id":"55555555-5555-5555-5555-555555555555","staff_name":"Admin test","automated_system_score":80,"manager_assessment_score":80,"peer_review_score":80,"parent_satisfaction_score":80}' \
   200 "SUPER_ADMIN"
 
+# --- 10. Kế hoạch bài dạy (CV 2345/STEM TT 86) & Thời khóa biểu (TT 05/2025) ---
+# Nộp giáo án chuẩn CV 2345 -> 201 Created
+http_case "lesson-plan-submit-cv2345" POST "/api/v1/lesson-plans/submit" \
+  '{"teacher_id":"b0000000-0000-0000-0000-000000000001","teacher_name":"Nguyễn Văn An","grade_level":5,"subject_id":"TOAN","title":"Bài 10: Phân số thập phân chuẩn CV 2345","week_number":10,"duration_slots":2,"curriculum_standard":"CV_2345","objectives":{"knowledge":"Hiểu khái niệm phân số thập phân","competencies":"Năng lực tư duy toán học","qualities":"Chăm chỉ"},"equipment":"Bộ thẻ số thập phân"}' \
+  201 "GVBM"
+grep -q '"current_status":"SUBMITTED"' "$LOG_DIR/last-response.json" \
+  && log_case "lesson-plan-submitted-status" 0 0 "(trạng thái SUBMITTED)" \
+  || log_case "lesson-plan-submitted-status" 0 1 "trạng thái không phải SUBMITTED"
+
+LP_ID=$(python3 -c 'import json; d=json.load(open("'$LOG_DIR'/last-response.json")); print(d.get("data",{}).get("id",""))')
+
+# Duyệt giáo án bước 1: Tổ trưởng chuyên môn duyệt -> DEPARTMENT_HEAD_APPROVED
+http_case "lesson-plan-approve-dept-head" POST "/api/v1/lesson-plans/${LP_ID}/approve" \
+  '{"action":"APPROVE","reviewer_role":"TO_TRUONG","reviewer_name":"Trần Thị Bình","comments":"Giáo án đạt chuẩn 4 bước CV 2345. Duyệt chuyển BGH."}' \
+  200 "TO_TRUONG"
+grep -q '"current_status":"DEPARTMENT_HEAD_APPROVED"' "$LOG_DIR/last-response.json" \
+  && log_case "lesson-plan-dept-head-status" 0 0 "(duyệt cấp tổ thành công)" \
+  || log_case "lesson-plan-dept-head-status" 0 1 "trạng thái không phải DEPARTMENT_HEAD_APPROVED"
+
+# Duyệt giáo án bước 2: Ban Giám hiệu ký số duyệt hoàn tất -> APPROVED
+http_case "lesson-plan-approve-principal" POST "/api/v1/lesson-plans/${LP_ID}/approve" \
+  '{"action":"APPROVE","reviewer_role":"BGH","reviewer_name":"Lê Hoàng Cường","comments":"Ký duyệt chính thức theo quy chế chuyên môn.","digital_signature":"SIGN_SMARTCA_BGH_TSA_OK"}' \
+  200 "BGH"
+grep -q '"current_status":"APPROVED"' "$LOG_DIR/last-response.json" \
+  && log_case "lesson-plan-principal-status" 0 0 "(BGH ký duyệt hoàn tất APPROVED)" \
+  || log_case "lesson-plan-principal-status" 0 1 "trạng thái không phải APPROVED"
+
+# Cấu hình tiết thời khóa biểu hợp lệ -> 201 Created
+http_case "timetable-slot-configure-valid" POST "/api/v1/timetable/slots" \
+  '{"academic_year_id":"2026-2027","term_id":"2026-2027-HK1","class_id":"f0000000-0000-0000-0000-000000000002","class_name":"5A1","teacher_id":"b0000000-0000-0000-0000-000000000001","teacher_name":"Nguyễn Văn An","subject_id":"TOAN","day_of_week":4,"period":1,"room_number":"Phòng 5A1","week_number":0}' \
+  201 "BGH"
+
+# Cấu hình trùng lịch giáo viên (Thứ 4, Tiết 1 cùng giáo viên ở lớp khác) -> 409 Conflict (TT 05/2025)
+http_case "timetable-slot-teacher-conflict" POST "/api/v1/timetable/slots" \
+  '{"academic_year_id":"2026-2027","term_id":"2026-2027-HK1","class_id":"f0000000-0000-0000-0000-000000000001","class_name":"1A1","teacher_id":"b0000000-0000-0000-0000-000000000001","teacher_name":"Nguyễn Văn An","subject_id":"TOAN","day_of_week":4,"period":1,"room_number":"Phòng 1A1","week_number":0}' \
+  409 "BGH"
+grep -q 'Thông tư 05/2025/TT-BGDĐT' "$LOG_DIR/last-response.json" \
+  && log_case "timetable-conflict-citation" 0 0 "(báo lỗi xung đột lịch dạy TT 05/2025 chuẩn xác)" \
+  || log_case "timetable-conflict-citation" 0 1 "không viện dẫn Thông tư 05/2025 trong lỗi xung đột"
+
 # ---------------------------------------------------------------- REPORT
 echo
 echo "== KẾT QUẢ =="

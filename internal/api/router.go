@@ -78,6 +78,34 @@ func SetupRouter() *gin.Engine {
 			middleware.RequireRole("BGH", "GVCN"),
 			h.GenerateTranscript,
 		)
+
+		// Lesson Plans (CV 2345/STEM TT 86)
+		v1.POST("/lesson-plans/submit",
+			middleware.RequireRole("BGH", "TO_TRUONG", "GVCN", "GVBM", "GV"),
+			h.SubmitLessonPlan,
+		)
+		v1.POST("/lesson-plans/:id/approve",
+			middleware.RequireRole("BGH", "TO_TRUONG"),
+			h.ApproveLessonPlan,
+		)
+		v1.GET("/lesson-plans/:id",
+			middleware.RequireRole("BGH", "TO_TRUONG", "GVCN", "GVBM", "GV"),
+			h.GetLessonPlan,
+		)
+		v1.GET("/lesson-plans",
+			middleware.RequireRole("BGH", "TO_TRUONG", "GVCN", "GVBM", "GV"),
+			h.ListLessonPlans,
+		)
+
+		// Timetable Slot Configuration & Management (Circular 05/2025)
+		v1.POST("/timetable/slots",
+			middleware.RequireRole("BGH", "TO_TRUONG", "GVCN", "GVBM"),
+			h.ConfigureTimetableSlot,
+		)
+		v1.GET("/timetable/slots",
+			middleware.RequireRole("BGH", "TO_TRUONG", "GVCN", "GVBM", "PHHS"),
+			h.GetTimetableSlots,
+		)
 	}
 
 	return r

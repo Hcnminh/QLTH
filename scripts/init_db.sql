@@ -550,6 +550,59 @@ CREATE TABLE IF NOT EXISTS teaching_quotas (
     updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
 );
 
+-- lesson_plans (CV 2345 & STEM TT 86)
+CREATE TABLE IF NOT EXISTS lesson_plans (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    school_id UUID REFERENCES schools(id) ON DELETE CASCADE,
+    teacher_id UUID REFERENCES staffs(id) ON DELETE CASCADE,
+    class_id UUID REFERENCES classes(id) ON DELETE SET NULL,
+    grade_level INT NOT NULL CHECK (grade_level BETWEEN 1 AND 5),
+    subject_id VARCHAR(50) REFERENCES subjects(id) ON DELETE CASCADE,
+    title VARCHAR(255) NOT NULL,
+    week_number INT NOT NULL CHECK (week_number BETWEEN 1 AND 35),
+    duration_slots INT NOT NULL DEFAULT 1,
+    curriculum_standard VARCHAR(50) NOT NULL DEFAULT 'CV_2345',
+    objectives JSONB DEFAULT '{}',
+    equipment TEXT,
+    activities JSONB DEFAULT '[]',
+    attachment_url TEXT,
+    current_status VARCHAR(50) NOT NULL DEFAULT 'SUBMITTED',
+    created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
+);
+
+-- lesson_plan_reviews (Multi-level approval workflow)
+CREATE TABLE IF NOT EXISTS lesson_plan_reviews (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    lesson_plan_id UUID REFERENCES lesson_plans(id) ON DELETE CASCADE,
+    reviewer_id UUID REFERENCES staffs(id) ON DELETE SET NULL,
+    reviewer_role VARCHAR(50) NOT NULL,
+    reviewer_name VARCHAR(255),
+    action VARCHAR(50) NOT NULL,
+    comments TEXT,
+    digital_signature TEXT,
+    reviewed_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
+);
+
+-- timetable_slots (Timetable slot configuration & conflict management)
+CREATE TABLE IF NOT EXISTS timetable_slots (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    school_id UUID REFERENCES schools(id) ON DELETE CASCADE,
+    academic_year_id VARCHAR(32) REFERENCES academic_years(id) ON DELETE CASCADE,
+    term_id VARCHAR(32) REFERENCES terms(id) ON DELETE CASCADE,
+    class_id UUID REFERENCES classes(id) ON DELETE CASCADE,
+    teacher_id UUID REFERENCES staffs(id) ON DELETE CASCADE,
+    subject_id VARCHAR(50) REFERENCES subjects(id) ON DELETE CASCADE,
+    day_of_week INT NOT NULL CHECK (day_of_week BETWEEN 2 AND 7),
+    period INT NOT NULL CHECK (period BETWEEN 1 AND 10),
+    room_number VARCHAR(50),
+    week_number INT DEFAULT 0,
+    created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT uk_class_slot UNIQUE (class_id, academic_year_id, term_id, day_of_week, period, week_number),
+    CONSTRAINT uk_teacher_slot UNIQUE (teacher_id, academic_year_id, term_id, day_of_week, period, week_number)
+);
+
 -- =============================================================================
 -- PART 4: RICH BUSINESS SEED DATA (FOR ALL 16 TABLES)
 -- =============================================================================
@@ -1381,3 +1434,121 @@ INSERT INTO kpi_evaluations (
     TRUE,
     'Đạt 90.40 điểm có SKKN nhưng hạ xuống mức Tốt do khống chế trần 20% theo NĐ 90/2020'
 ) ON CONFLICT (id) DO NOTHING;
+
+-- Seed lesson_plans (CV 2345 & STEM TT 86)
+INSERT INTO lesson_plans (
+    id, school_id, teacher_id, class_id, grade_level, subject_id,
+    title, week_number, duration_slots, curriculum_standard,
+    objectives, equipment, activities, attachment_url, current_status, created_at, updated_at
+) VALUES 
+(
+    'e0000000-0000-0000-0000-000000000001',
+    'a0000000-0000-0000-0000-000000000001',
+    'b0000000-0000-0000-0000-000000000001',
+    'f0000000-0000-0000-0000-000000000002',
+    5,
+    'TOAN',
+    'Bài 12: Hình hộp chữ nhật và hình lập phương (Chuẩn CV 2345)',
+    12,
+    2,
+    'CV_2345',
+    '{"knowledge": "Nhận biết các đỉnh, cạnh, mặt của hình hộp chữ nhật", "competencies": "Năng lực tư duy và lập luận toán học", "qualities": "Chăm chỉ, trách nhiệm"}'::jsonb,
+    'Mô hình hình hộp chữ nhật, hình lập phương, bộ đồ dùng học toán lớp 5',
+    '[{"phase": "Khởi động", "duration_mins": 5, "content": "Trò chơi tìm đồ vật quanh lớp có dạng hình hộp"}, {"phase": "Khám phá", "duration_mins": 15, "content": "Quan sát mô hình, đếm số đỉnh, cạnh, mặt"}, {"phase": "Luyện tập", "duration_mins": 10, "content": "Bài tập 1, 2 SGK trang 108"}, {"phase": "Vận dụng", "duration_mins": 5, "content": "Đo kích thước hộp sữa, hộp quà thực tế"}]'::jsonb,
+    '/uploads/lesson_plans/lp_toan_lop5_bai12.pdf',
+    'APPROVED',
+    NOW() - INTERVAL '3 days',
+    NOW() - INTERVAL '1 day'
+),
+(
+    'e0000000-0000-0000-0000-000000000002',
+    'a0000000-0000-0000-0000-000000000001',
+    'b0000000-0000-0000-0000-000000000001',
+    'f0000000-0000-0000-0000-000000000002',
+    5,
+    'STEM',
+    'Chủ đề STEM: Chế tạo chong chóng gió tạo năng lượng sạch (TT 86/CV 909)',
+    14,
+    2,
+    'STEM_TT_86',
+    '{"knowledge": "Ứng dụng năng lượng gió chuyển hóa thành cơ năng", "competencies": "Năng lực giải quyết vấn đề và sáng tạo", "qualities": "Yêu nước, bảo vệ môi trường"}'::jsonb,
+    'Vỏ chai nhựa, que gỗ, motor mini phát điện, cánh quạt, đồng hồ đo vôn kế',
+    '[{"phase": "Xác định vấn đề", "duration_mins": 7, "content": "Tìm hiểu nguồn năng lượng tái tạo"}, {"phase": "Nghiên cứu kiến thức nền", "duration_mins": 10, "content": "Nguyên lý cánh đón gió"}, {"phase": "Thiết kế & chế tạo", "duration_mins": 15, "content": "Học sinh thực hành theo nhóm"}, {"phase": "Thử nghiệm & đánh giá", "duration_mins": 8, "content": "Đo điện áp và chia sẻ bài học"}]'::jsonb,
+    '/uploads/lesson_plans/lp_stem_chong_chong_lop5.pdf',
+    'SUBMITTED',
+    NOW() - INTERVAL '1 day',
+    NOW()
+) ON CONFLICT (id) DO NOTHING;
+
+-- Seed lesson_plan_reviews
+INSERT INTO lesson_plan_reviews (
+    id, lesson_plan_id, reviewer_id, reviewer_role, reviewer_name, action, comments, digital_signature, reviewed_at
+) VALUES 
+(
+    'e0000000-0000-0000-0000-000000000101',
+    'e0000000-0000-0000-0000-000000000001',
+    'b0000000-0000-0000-0000-000000000002',
+    'TO_TRUONG',
+    'Trần Thị Bình',
+    'APPROVE',
+    'Kế hoạch bài dạy chuẩn bị công phu, chuẩn 4 bước CV 2345, phân bổ thời gian hợp lý. Duyệt chuyển BGH ký duyệt.',
+    'SIGN_SMARTCA_TOTRUONG_BINHTT_20261025',
+    NOW() - INTERVAL '2 days'
+),
+(
+    'e0000000-0000-0000-0000-000000000102',
+    'e0000000-0000-0000-0000-000000000001',
+    'b0000000-0000-0000-0000-000000000003',
+    'BGH',
+    'Lê Hoàng Cường',
+    'APPROVE',
+    'Phê duyệt chính thức theo quy định chuyên môn. Chú ý hướng dẫn học sinh thao tác mô hình an toàn.',
+    'SIGN_SMARTCA_BGH_CUONGLE_TSA_20261026',
+    NOW() - INTERVAL '1 day'
+) ON CONFLICT (id) DO NOTHING;
+
+-- Seed timetable_slots
+INSERT INTO timetable_slots (
+    id, school_id, academic_year_id, term_id, class_id, teacher_id, subject_id,
+    day_of_week, period, room_number, week_number
+) VALUES 
+(
+    'e0000000-0000-0000-0000-000000000201',
+    'a0000000-0000-0000-0000-000000000001',
+    '2026-2027',
+    '2026-2027-HK1',
+    'f0000000-0000-0000-0000-000000000002',
+    'b0000000-0000-0000-0000-000000000001',
+    'TOAN',
+    2, -- Thứ 2
+    1, -- Tiết 1
+    'Phòng 5A1',
+    0
+),
+(
+    'e0000000-0000-0000-0000-000000000202',
+    'a0000000-0000-0000-0000-000000000001',
+    '2026-2027',
+    '2026-2027-HK1',
+    'f0000000-0000-0000-0000-000000000002',
+    'b0000000-0000-0000-0000-000000000001',
+    'TOAN',
+    2, -- Thứ 2
+    2, -- Tiết 2
+    'Phòng 5A1',
+    0
+),
+(
+    'e0000000-0000-0000-0000-000000000203',
+    'a0000000-0000-0000-0000-000000000001',
+    '2026-2027',
+    '2026-2027-HK1',
+    'f0000000-0000-0000-0000-000000000001',
+    'b0000000-0000-0000-0000-000000000002',
+    'TIENG_VIET',
+    2, -- Thứ 2
+    1, -- Tiết 1
+    'Phòng 1A1',
+    0
+) ON CONFLICT (id) DO NOTHING;
+

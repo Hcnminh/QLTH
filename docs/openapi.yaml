@@ -51,6 +51,8 @@ tags:
     description: Bán trú — báo hủy suất ăn và hoàn tiền
   - name: students
     description: Hồ sơ học sinh và tiếp nhận tuyển sinh
+  - name: curriculum
+    description: Quản lý kế hoạch bài dạy (CV 2345/STEM TT 86) và xếp thời khóa biểu (TT 05/2025)
 
 paths:
   /health:
@@ -695,6 +697,302 @@ paths:
                 code: 422
                 message: Chưa có sự đồng thuận số (Digital Consent) của cha mẹ/người giám hộ theo Điều 20 Nghị định 13/2023/NĐ-CP
 
+  /api/v1/lesson-plans/submit:
+    post:
+      tags: [curriculum]
+      summary: Nộp kế hoạch bài dạy (CV 2345 / STEM TT 86)
+      description: |
+        Nộp kế hoạch bài dạy điện tử (giáo án) tuân thủ:
+        - **Công văn 2345/BGDĐT-GDTH** (4 bước hoạt động: Khởi động, Khám phá, Luyện tập, Vận dụng; 3 mục tiêu: Kiến thức, Năng lực, Phẩm chất).
+        - **Thông tư 86/BGDĐT & CV 909/BGDĐT-GDTH** (giáo dục STEM tiểu học).
+        - Giới hạn từ tuần 1 đến tuần 35 theo Thông tư 05/2025/TT-BGDĐT.
+        - Khởi tạo trạng thái `SUBMITTED` (hoặc `DRAFT` nếu bật cờ lưu nháp).
+        
+        Role được phép: `BGH`, `TO_TRUONG`, `GVCN`, `GVBM`, `GV`, `SUPER_ADMIN`.
+      operationId: submitLessonPlan
+      parameters:
+        - $ref: '#/components/parameters/SchoolId'
+        - $ref: '#/components/parameters/UserRole'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LessonPlanSubmitRequest'
+            example:
+              teacher_id: b0000000-0000-0000-0000-000000000001
+              grade_level: 5
+              subject_id: TOAN
+              title: 'Bài 15: Thể tích hình lập phương'
+              week_number: 15
+              duration_slots: 2
+              curriculum_standard: CV_2345
+              objectives:
+                knowledge: Nắm công thức tính thể tích hình lập phương V = a x a x a
+                competencies: Năng lực mô hình hóa toán học
+                qualities: Chăm chỉ, kiên trì
+              equipment: Mô hình lập phương đơn vị 1cm3
+              activities:
+                - phase: Khởi động
+                  duration_mins: 5
+                  content: Trò chơi ghép khối rubik
+                - phase: Khám phá
+                  duration_mins: 15
+                  content: Xây dựng công thức tính thể tích
+                - phase: Luyện tập
+                  duration_mins: 15
+                  content: Bài tập 1 và 2 SGK trang 120
+                - phase: Vận dụng
+                  duration_mins: 5
+                  content: Tính thể tích hộp quà lưu niệm
+      responses:
+        '201':
+          description: Nộp kế hoạch bài dạy thành công
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiEnvelope'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/LessonPlan'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/MissingSchoolId'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  /api/v1/lesson-plans/{id}/approve:
+    post:
+      tags: [curriculum]
+      summary: Phê duyệt hoặc góp ý kế hoạch bài dạy phân tầng
+      description: |
+        Quy trình thẩm định phân tầng:
+        - **Tổ trưởng chuyên môn (TO_TRUONG)**: Duyệt bước 1 chuyển trạng thái sang `DEPARTMENT_HEAD_APPROVED`.
+        - **Ban Giám hiệu (BGH)**: Duyệt hoàn tất chuyển trạng thái sang `APPROVED` kèm chữ ký số SmartCA/TSA.
+        - Khi từ chối (`REJECT`) hoặc yêu cầu sửa (`REQUEST_REVISION`): bắt buộc nhập `comments` góp ý sư phạm.
+        
+        Role được phép: `BGH`, `TO_TRUONG`, `SUPER_ADMIN`.
+      operationId: approveLessonPlan
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: UUID của kế hoạch bài dạy
+          schema:
+            type: string
+            format: uuid
+        - $ref: '#/components/parameters/SchoolId'
+        - $ref: '#/components/parameters/UserRole'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LessonPlanApproveRequest'
+            example:
+              action: APPROVE
+              reviewer_role: TO_TRUONG
+              reviewer_name: Trần Thị Bình
+              comments: Giáo án đúng chuẩn CV 2345, tiến trình sư phạm hợp lý. Duyệt chuyển BGH ký số.
+              digital_signature: SIGN_SMARTCA_TOTRUONG_2026
+      responses:
+        '200':
+          description: Phê duyệt hoặc góp ý kế hoạch bài dạy thành công
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiEnvelope'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/LessonPlan'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/MissingSchoolId'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          description: Không tìm thấy kế hoạch bài dạy
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+
+  /api/v1/lesson-plans/{id}:
+    get:
+      tags: [curriculum]
+      summary: Chi tiết kế hoạch bài dạy và lịch sử góp ý
+      description: Lấy thông tin chi tiết của một kế hoạch bài dạy cùng toàn bộ lịch sử duyệt và ý kiến nhận xét của tổ chuyên môn và Ban Giám hiệu.
+      operationId: getLessonPlan
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: UUID của kế hoạch bài dạy
+          schema:
+            type: string
+            format: uuid
+        - $ref: '#/components/parameters/SchoolId'
+        - $ref: '#/components/parameters/UserRole'
+      responses:
+        '200':
+          description: Lấy chi tiết kế hoạch bài dạy thành công
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiEnvelope'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/LessonPlan'
+        '401':
+          $ref: '#/components/responses/MissingSchoolId'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          description: Không tìm thấy kế hoạch bài dạy
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+
+  /api/v1/lesson-plans:
+    get:
+      tags: [curriculum]
+      summary: Danh sách kế hoạch bài dạy của trường
+      description: Truy vấn danh sách kế hoạch bài dạy đã nộp, hỗ trợ bộ lọc theo môn học, giáo viên, trạng thái duyệt.
+      operationId: listLessonPlans
+      parameters:
+        - $ref: '#/components/parameters/SchoolId'
+        - $ref: '#/components/parameters/UserRole'
+      responses:
+        '200':
+          description: Lấy danh sách thành công
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiEnvelope'
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/LessonPlan'
+        '401':
+          $ref: '#/components/responses/MissingSchoolId'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  /api/v1/timetable/slots:
+    post:
+      tags: [curriculum]
+      summary: Cấu hình tiết thời khóa biểu và kiểm soát không trùng lịch
+      description: |
+        Cấu hình tiết thời khóa biểu:
+        - Đảm bảo **không trùng lịch giảng dạy của giáo viên** giữa các lớp khác nhau tại cùng thứ/tiết theo **Thông tư 05/2025/TT-BGDĐT**.
+        - Đảm bảo một lớp không bị xếp 2 môn học đồng thời.
+        - Đảm bảo một phòng chức năng không bị trùng lịch sử dụng.
+        - Trả về `409 Conflict` nếu phát hiện xung đột lịch.
+        
+        Role được phép: `BGH`, `TO_TRUONG`, `GVCN`, `GVBM`, `SUPER_ADMIN`.
+      operationId: configureTimetableSlot
+      parameters:
+        - $ref: '#/components/parameters/SchoolId'
+        - $ref: '#/components/parameters/UserRole'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TimetableSlotConfigureRequest'
+            example:
+              academic_year_id: '2026-2027'
+              term_id: '2026-2027-HK1'
+              class_id: f0000000-0000-0000-0000-000000000002
+              class_name: '5A1'
+              teacher_id: b0000000-0000-0000-0000-000000000001
+              teacher_name: 'Nguyễn Văn An'
+              subject_id: TOAN
+              day_of_week: 3
+              period: 1
+              room_number: 'Phòng 5A1'
+              week_number: 0
+      responses:
+        '201':
+          description: Cấu hình tiết thời khóa biểu thành công
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiEnvelope'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/TimetableSlot'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/MissingSchoolId'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '409':
+          description: Phát hiện xung đột thời khóa biểu vi phạm Thông tư 05/2025/TT-BGDĐT
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+    get:
+      tags: [curriculum]
+      summary: Lấy danh sách các tiết thời khóa biểu
+      description: Truy vấn lịch thời khóa biểu theo năm học, học kỳ, lớp học hoặc giáo viên.
+      operationId: getTimetableSlots
+      parameters:
+        - $ref: '#/components/parameters/SchoolId'
+        - $ref: '#/components/parameters/UserRole'
+        - name: academic_year_id
+          in: query
+          required: false
+          schema: { type: string }
+          example: '2026-2027'
+        - name: term_id
+          in: query
+          required: false
+          schema: { type: string }
+          example: '2026-2027-HK1'
+        - name: class_id
+          in: query
+          required: false
+          schema: { type: string, format: uuid }
+        - name: teacher_id
+          in: query
+          required: false
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: Lấy danh sách thành công
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiEnvelope'
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/TimetableSlot'
+        '401':
+          $ref: '#/components/responses/MissingSchoolId'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
 components:
   parameters:
     SchoolId:
@@ -1030,3 +1328,248 @@ components:
         created_at:
           type: string
           format: date-time
+
+    LessonPlanSubmitRequest:
+      type: object
+      required: [teacher_id, grade_level, subject_id, title, week_number]
+      properties:
+        school_id:
+          type: string
+          format: uuid
+        teacher_id:
+          type: string
+          format: uuid
+        teacher_name:
+          type: string
+        class_id:
+          type: string
+          format: uuid
+        grade_level:
+          type: integer
+          minimum: 1
+          maximum: 5
+        subject_id:
+          type: string
+        title:
+          type: string
+        week_number:
+          type: integer
+          minimum: 1
+          maximum: 35
+        duration_slots:
+          type: integer
+          default: 1
+        curriculum_standard:
+          type: string
+          enum: [CV_2345, STEM_TT_86]
+          default: CV_2345
+        objectives:
+          type: object
+          properties:
+            knowledge:
+              type: string
+            competencies:
+              type: string
+            qualities:
+              type: string
+        equipment:
+          type: string
+        activities:
+          type: array
+          items:
+            type: object
+            properties:
+              phase:
+                type: string
+              duration_mins:
+                type: integer
+              content:
+                type: string
+              objective:
+                type: string
+              expected_product:
+                type: string
+        attachment_url:
+          type: string
+        is_draft:
+          type: boolean
+          default: false
+
+    LessonPlanApproveRequest:
+      type: object
+      required: [action]
+      properties:
+        action:
+          type: string
+          enum: [APPROVE, REJECT, REQUEST_REVISION]
+        reviewer_id:
+          type: string
+          format: uuid
+        reviewer_role:
+          type: string
+          enum: [TO_TRUONG, BGH, SUPER_ADMIN]
+        reviewer_name:
+          type: string
+        comments:
+          type: string
+          description: Ý kiến nhận xét, góp ý sư phạm (bắt buộc khi REJECT hoặc REQUEST_REVISION)
+        digital_signature:
+          type: string
+
+    LessonPlan:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        school_id:
+          type: string
+          format: uuid
+        teacher_id:
+          type: string
+          format: uuid
+        teacher_name:
+          type: string
+        class_id:
+          type: string
+          format: uuid
+        grade_level:
+          type: integer
+        subject_id:
+          type: string
+        title:
+          type: string
+        week_number:
+          type: integer
+        duration_slots:
+          type: integer
+        curriculum_standard:
+          type: string
+        objectives:
+          type: object
+        equipment:
+          type: string
+        activities:
+          type: array
+          items:
+            type: object
+        attachment_url:
+          type: string
+        current_status:
+          type: string
+          enum: [DRAFT, SUBMITTED, DEPARTMENT_HEAD_APPROVED, APPROVED, REJECTED]
+        reviews:
+          type: array
+          items:
+            type: object
+            properties:
+              id:
+                type: string
+                format: uuid
+              reviewer_id:
+                type: string
+                format: uuid
+              reviewer_role:
+                type: string
+              reviewer_name:
+                type: string
+              action:
+                type: string
+              comments:
+                type: string
+              digital_signature:
+                type: string
+              reviewed_at:
+                type: string
+                format: date-time
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    TimetableSlotConfigureRequest:
+      type: object
+      required: [academic_year_id, term_id, class_id, teacher_id, subject_id, day_of_week, period]
+      properties:
+        school_id:
+          type: string
+          format: uuid
+        academic_year_id:
+          type: string
+          example: '2026-2027'
+        term_id:
+          type: string
+          example: '2026-2027-HK1'
+        class_id:
+          type: string
+          format: uuid
+        class_name:
+          type: string
+        teacher_id:
+          type: string
+          format: uuid
+        teacher_name:
+          type: string
+        subject_id:
+          type: string
+        day_of_week:
+          type: integer
+          minimum: 2
+          maximum: 7
+          description: Thứ trong tuần (2=Thứ Hai, 6=Thứ Sáu, 7=Thứ Bảy)
+        period:
+          type: integer
+          minimum: 1
+          maximum: 10
+          description: Tiết học trong ngày (1-5 sáng, 6-10 chiều)
+        room_number:
+          type: string
+        week_number:
+          type: integer
+          minimum: 0
+          maximum: 35
+          default: 0
+          description: 0 cho cả học kỳ, hoặc số tuần cụ thể
+
+    TimetableSlot:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        school_id:
+          type: string
+          format: uuid
+        academic_year_id:
+          type: string
+        term_id:
+          type: string
+        class_id:
+          type: string
+          format: uuid
+        class_name:
+          type: string
+        teacher_id:
+          type: string
+          format: uuid
+        teacher_name:
+          type: string
+        subject_id:
+          type: string
+        day_of_week:
+          type: integer
+        period:
+          type: integer
+        room_number:
+          type: string
+        week_number:
+          type: integer
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+

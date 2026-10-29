@@ -3,11 +3,15 @@ package handlers
 import (
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
+	"strings"
+	"sync"
 	"time"
 
 	"qlth/internal/core/assessment"
+	"qlth/internal/core/curriculum"
 	"qlth/internal/core/domain"
 	"qlth/internal/core/kpi"
 	"qlth/internal/core/teaching"
@@ -18,16 +22,26 @@ import (
 )
 
 type APIHandler struct {
-	kpiEngine     *kpi.Engine
-	quotaEngine   *teaching.QuotaEngine
-	stratRegistry *assessment.Registry
+	kpiEngine        *kpi.Engine
+	quotaEngine      *teaching.QuotaEngine
+	stratRegistry    *assessment.Registry
+	lessonPlanEngine *curriculum.LessonPlanEngine
+	timetableEngine  *curriculum.TimetableEngine
+	planStoreMu      sync.RWMutex
+	planStore        map[uuid.UUID]*curriculum.LessonPlan
+	timetableStoreMu sync.RWMutex
+	timetableStore   map[uuid.UUID]curriculum.TimetableSlot
 }
 
 func NewAPIHandler() *APIHandler {
 	return &APIHandler{
-		kpiEngine:     kpi.NewEngine(),
-		quotaEngine:   teaching.NewQuotaEngine(),
-		stratRegistry: assessment.NewRegistry(),
+		kpiEngine:        kpi.NewEngine(),
+		quotaEngine:      teaching.NewQuotaEngine(),
+		stratRegistry:    assessment.NewRegistry(),
+		lessonPlanEngine: curriculum.NewLessonPlanEngine(),
+		timetableEngine:  curriculum.NewTimetableEngine(),
+		planStore:        make(map[uuid.UUID]*curriculum.LessonPlan),
+		timetableStore:   make(map[uuid.UUID]curriculum.TimetableSlot),
 	}
 }
 
@@ -763,4 +777,734 @@ func (h *APIHandler) GenerateTranscript(c *gin.Context) {
 			"is_locked":          true,
 		},
 	})
+}
+
+// =============================================================================
+// CURRICULUM, LESSON PLANS (CV 2345/STEM TT 86) & TIMETABLE (TT 05/2025)
+// =============================================================================
+
+// SubmitLessonPlanRequest payload for submitting a lesson plan
+type SubmitLessonPlanRequest struct {
+	SchoolID           uuid.UUID                   `json:"school_id"`
+	TeacherID          uuid.UUID                   `json:"teacher_id" binding:"required"`
+	TeacherName        string                      `json:"teacher_name"`
+	ClassID            *uuid.UUID                  `json:"class_id"`
+	GradeLevel         int                         `json:"grade_level" binding:"required"`
+	SubjectID          string                      `json:"subject_id" binding:"required"`
+	Title              string                      `json:"title" binding:"required"`
+	WeekNumber         int                         `json:"week_number" binding:"required"`
+	DurationSlots      int                         `json:"duration_slots"`
+	CurriculumStandard string                      `json:"curriculum_standard"`
+	Objectives         curriculum.LessonObjectives `json:"objectives"`
+	Equipment          string                      `json:"equipment"`
+	Activities         []curriculum.LessonActivity `json:"activities"`
+	AttachmentURL      string                      `json:"attachment_url"`
+	IsDraft            bool                        `json:"is_draft"`
+}
+
+// ApproveLessonPlanRequest payload for multi-level review and approval
+type ApproveLessonPlanRequest struct {
+	Action           string    `json:"action" binding:"required"` // APPROVE, REJECT, REQUEST_REVISION
+	ReviewerID       uuid.UUID `json:"reviewer_id"`
+	ReviewerRole     string    `json:"reviewer_role"`
+	ReviewerName     string    `json:"reviewer_name"`
+	Comments         string    `json:"comments"`
+	DigitalSignature string    `json:"digital_signature"`
+}
+
+// ConfigureTimetableSlotRequest payload for setting up a timetable slot
+type ConfigureTimetableSlotRequest struct {
+	SchoolID       uuid.UUID `json:"school_id"`
+	AcademicYearID string    `json:"academic_year_id" binding:"required"`
+	TermID         string    `json:"term_id" binding:"required"`
+	ClassID        uuid.UUID `json:"class_id" binding:"required"`
+	ClassName      string    `json:"class_name"`
+	TeacherID      uuid.UUID `json:"teacher_id" binding:"required"`
+	TeacherName    string    `json:"teacher_name"`
+	SubjectID      string    `json:"subject_id" binding:"required"`
+	DayOfWeek      int       `json:"day_of_week" binding:"required"`
+	Period         int       `json:"period" binding:"required"`
+	RoomNumber     string    `json:"room_number"`
+	WeekNumber     int       `json:"week_number"`
+}
+
+// SubmitLessonPlan handles lesson plan submission (POST /api/v1/lesson-plans/submit)
+func (h *APIHandler) SubmitLessonPlan(c *gin.Context) {
+	var req SubmitLessonPlanRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"success": false,
+			"code":    http.StatusBadRequest,
+			"message": "Dữ liệu kế hoạch bài dạy không hợp lệ: " + err.Error(),
+		})
+		return
+	}
+
+	schoolID := req.SchoolID
+	if schoolID == uuid.Nil {
+		if headerSchool := c.GetHeader("X-School-ID"); headerSchool != "" {
+			if parsed, err := uuid.Parse(headerSchool); err == nil {
+				schoolID = parsed
+			}
+		}
+	}
+	if schoolID == uuid.Nil {
+		schoolID = uuid.MustParse("a0000000-0000-0000-0000-000000000001")
+	}
+
+	plan := curriculum.LessonPlan{
+		ID:                 uuid.New(),
+		SchoolID:           schoolID,
+		TeacherID:          req.TeacherID,
+		TeacherName:        strings.TrimSpace(req.TeacherName),
+		ClassID:            req.ClassID,
+		GradeLevel:         req.GradeLevel,
+		SubjectID:          strings.TrimSpace(req.SubjectID),
+		Title:              strings.TrimSpace(req.Title),
+		WeekNumber:         req.WeekNumber,
+		DurationSlots:      req.DurationSlots,
+		CurriculumStandard: strings.TrimSpace(req.CurriculumStandard),
+		Objectives:         req.Objectives,
+		Equipment:          strings.TrimSpace(req.Equipment),
+		Activities:         req.Activities,
+		AttachmentURL:      strings.TrimSpace(req.AttachmentURL),
+		CreatedAt:          time.Now(),
+		UpdatedAt:          time.Now(),
+	}
+
+	if req.IsDraft {
+		if err := h.lessonPlanEngine.ValidateLessonPlan(&plan); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{
+				"success": false,
+				"code":    http.StatusBadRequest,
+				"message": err.Error(),
+			})
+			return
+		}
+		plan.CurrentStatus = curriculum.StatusDraft
+	} else {
+		if err := h.lessonPlanEngine.SubmitLessonPlan(&plan); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{
+				"success": false,
+				"code":    http.StatusBadRequest,
+				"message": err.Error(),
+			})
+			return
+		}
+	}
+
+	database, _ := db.GetDB()
+	if plan.TeacherName == "" && database != nil {
+		var teacherName string
+		if err := database.QueryRow("SELECT full_name FROM staffs WHERE id = $1", plan.TeacherID).Scan(&teacherName); err == nil {
+			plan.TeacherName = teacherName
+		}
+	}
+
+	// In-memory store
+	h.planStoreMu.Lock()
+	h.planStore[plan.ID] = &plan
+	h.planStoreMu.Unlock()
+
+	// Persist to Postgres if available
+	if database != nil {
+		persistLessonPlan(database, &plan)
+	}
+
+	c.JSON(http.StatusCreated, gin.H{
+		"success": true,
+		"code":    http.StatusCreated,
+		"message": "Nộp kế hoạch bài dạy thành công theo Công văn 2345/BGDĐT-GDTH",
+		"data":    plan,
+	})
+}
+
+// ApproveLessonPlan handles multi-level approval or rejection (POST /api/v1/lesson-plans/:id/approve)
+func (h *APIHandler) ApproveLessonPlan(c *gin.Context) {
+	idStr := c.Param("id")
+	planID, err := uuid.Parse(idStr)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"success": false,
+			"code":    http.StatusBadRequest,
+			"message": "Mã kế hoạch bài dạy không hợp lệ: " + idStr,
+		})
+		return
+	}
+
+	var req ApproveLessonPlanRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"success": false,
+			"code":    http.StatusBadRequest,
+			"message": "Dữ liệu phê duyệt không hợp lệ: " + err.Error(),
+		})
+		return
+	}
+
+	reviewerRole := strings.TrimSpace(req.ReviewerRole)
+	if reviewerRole == "" {
+		reviewerRole = c.GetHeader("X-User-Role")
+	}
+	if reviewerRole == "" {
+		reviewerRole = curriculum.RoleDepartmentHead
+	}
+
+	database, _ := db.GetDB()
+
+	// Locate plan
+	h.planStoreMu.RLock()
+	plan, exists := h.planStore[planID]
+	h.planStoreMu.RUnlock()
+
+	if !exists && database != nil {
+		dbPlan, err := loadLessonPlanFromDB(database, planID)
+		if err == nil && dbPlan != nil {
+			plan = dbPlan
+			h.planStoreMu.Lock()
+			h.planStore[planID] = plan
+			h.planStoreMu.Unlock()
+			exists = true
+		}
+	}
+
+	if !exists || plan == nil {
+		c.JSON(http.StatusNotFound, gin.H{
+			"success": false,
+			"code":    http.StatusNotFound,
+			"message": "Không tìm thấy kế hoạch bài dạy với mã: " + idStr,
+		})
+		return
+	}
+
+	reviewerName := strings.TrimSpace(req.ReviewerName)
+	if reviewerName == "" && req.ReviewerID != uuid.Nil && database != nil {
+		_ = database.QueryRow("SELECT full_name FROM staffs WHERE id = $1", req.ReviewerID).Scan(&reviewerName)
+	}
+	if reviewerName == "" {
+		reviewerName = reviewerRole
+	}
+
+	review := curriculum.LessonPlanReview{
+		ReviewerID:       req.ReviewerID,
+		ReviewerRole:     reviewerRole,
+		ReviewerName:     reviewerName,
+		Action:           curriculum.ReviewAction(strings.ToUpper(strings.TrimSpace(req.Action))),
+		Comments:         strings.TrimSpace(req.Comments),
+		DigitalSignature: strings.TrimSpace(req.DigitalSignature),
+		ReviewedAt:       time.Now(),
+	}
+
+	h.planStoreMu.Lock()
+	err = h.lessonPlanEngine.ReviewLessonPlan(plan, review)
+	h.planStoreMu.Unlock()
+
+	if err != nil {
+		code := http.StatusBadRequest
+		if errors.Is(err, curriculum.ErrUnauthorizedReviewer) {
+			code = http.StatusForbidden
+		}
+		c.JSON(code, gin.H{
+			"success": false,
+			"code":    code,
+			"message": err.Error(),
+		})
+		return
+	}
+
+	// Persist updated status and review log to DB
+	if database != nil {
+		_, _ = database.Exec("UPDATE lesson_plans SET current_status = $1, updated_at = NOW() WHERE id = $2", plan.CurrentStatus, plan.ID)
+		if len(plan.Reviews) > 0 {
+			latestReview := plan.Reviews[len(plan.Reviews)-1]
+			persistLessonPlanReview(database, latestReview)
+		}
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"code":    http.StatusOK,
+		"message": "Phê duyệt kế hoạch bài dạy thành công",
+		"data":    plan,
+	})
+}
+
+// GetLessonPlan retrieves a lesson plan by ID (GET /api/v1/lesson-plans/:id)
+func (h *APIHandler) GetLessonPlan(c *gin.Context) {
+	idStr := c.Param("id")
+	planID, err := uuid.Parse(idStr)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"success": false,
+			"code":    http.StatusBadRequest,
+			"message": "Mã kế hoạch bài dạy không hợp lệ",
+		})
+		return
+	}
+
+	h.planStoreMu.RLock()
+	plan, exists := h.planStore[planID]
+	h.planStoreMu.RUnlock()
+
+	database, _ := db.GetDB()
+	if (!exists || plan == nil) && database != nil {
+		if dbPlan, err := loadLessonPlanFromDB(database, planID); err == nil && dbPlan != nil {
+			plan = dbPlan
+			exists = true
+			h.planStoreMu.Lock()
+			h.planStore[planID] = plan
+			h.planStoreMu.Unlock()
+		}
+	}
+
+	if !exists || plan == nil {
+		c.JSON(http.StatusNotFound, gin.H{
+			"success": false,
+			"code":    http.StatusNotFound,
+			"message": "Không tìm thấy kế hoạch bài dạy",
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"code":    http.StatusOK,
+		"message": "Lấy thông tin kế hoạch bài dạy thành công",
+		"data":    plan,
+	})
+}
+
+// ListLessonPlans lists lesson plans with optional filters (GET /api/v1/lesson-plans)
+func (h *APIHandler) ListLessonPlans(c *gin.Context) {
+	database, _ := db.GetDB()
+	if database != nil {
+		var schoolID uuid.UUID
+		if s := c.GetHeader("X-School-ID"); s != "" {
+			schoolID, _ = uuid.Parse(s)
+		}
+		if schoolID == uuid.Nil {
+			schoolID = uuid.MustParse("a0000000-0000-0000-0000-000000000001")
+		}
+
+		plans, err := listLessonPlansFromDB(database, schoolID)
+		if err == nil && len(plans) > 0 {
+			c.JSON(http.StatusOK, gin.H{
+				"success": true,
+				"code":    http.StatusOK,
+				"message": "Lấy danh sách kế hoạch bài dạy thành công",
+				"data":    plans,
+			})
+			return
+		}
+	}
+
+	// Fallback to in-memory store
+	h.planStoreMu.RLock()
+	plans := make([]*curriculum.LessonPlan, 0, len(h.planStore))
+	for _, p := range h.planStore {
+		plans = append(plans, p)
+	}
+	h.planStoreMu.RUnlock()
+
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"code":    http.StatusOK,
+		"message": "Lấy danh sách kế hoạch bài dạy thành công",
+		"data":    plans,
+	})
+}
+
+func resolveSchoolID(c *gin.Context, reqSchoolID uuid.UUID) uuid.UUID {
+	if reqSchoolID != uuid.Nil {
+		return reqSchoolID
+	}
+	if s := c.GetHeader("X-School-ID"); s != "" {
+		if parsed, err := uuid.Parse(s); err == nil {
+			return parsed
+		}
+	}
+	return uuid.MustParse("a0000000-0000-0000-0000-000000000001")
+}
+
+func (h *APIHandler) gatherExistingSlots(database *sql.DB, schoolID uuid.UUID, academicYearID, termID string) []curriculum.TimetableSlot {
+	var existingSlots []curriculum.TimetableSlot
+	if database != nil {
+		if dbSlots, err := loadTimetableSlotsFromDB(database, schoolID, academicYearID, termID); err == nil {
+			existingSlots = dbSlots
+		}
+	}
+
+	h.timetableStoreMu.RLock()
+	defer h.timetableStoreMu.RUnlock()
+	for _, s := range h.timetableStore {
+		if s.SchoolID == schoolID && s.AcademicYearID == academicYearID && s.TermID == termID {
+			alreadyPresent := false
+			for _, ex := range existingSlots {
+				if ex.ID == s.ID {
+					alreadyPresent = true
+					break
+				}
+			}
+			if !alreadyPresent {
+				existingSlots = append(existingSlots, s)
+			}
+		}
+	}
+	return existingSlots
+}
+
+func enrichSlotMetadata(database *sql.DB, slot *curriculum.TimetableSlot) {
+	if database == nil {
+		return
+	}
+	if slot.TeacherName == "" {
+		_ = database.QueryRow("SELECT full_name FROM staffs WHERE id = $1", slot.TeacherID).Scan(&slot.TeacherName)
+	}
+	if slot.ClassName == "" {
+		_ = database.QueryRow("SELECT name FROM classes WHERE id = $1", slot.ClassID).Scan(&slot.ClassName)
+	}
+}
+
+func filterSlots(slots []curriculum.TimetableSlot, classFilter, teacherFilter string) []curriculum.TimetableSlot {
+	results := slots
+	if classFilter != "" {
+		if cid, err := uuid.Parse(classFilter); err == nil {
+			filtered := make([]curriculum.TimetableSlot, 0, len(results))
+			for _, s := range results {
+				if s.ClassID == cid {
+					filtered = append(filtered, s)
+				}
+			}
+			results = filtered
+		}
+	}
+	if teacherFilter != "" {
+		if tid, err := uuid.Parse(teacherFilter); err == nil {
+			filtered := make([]curriculum.TimetableSlot, 0, len(results))
+			for _, s := range results {
+				if s.TeacherID == tid {
+					filtered = append(filtered, s)
+				}
+			}
+			results = filtered
+		}
+	}
+	return results
+}
+
+// ConfigureTimetableSlot handles schedule slot configuration and conflict checks (POST /api/v1/timetable/slots)
+func (h *APIHandler) ConfigureTimetableSlot(c *gin.Context) {
+	var req ConfigureTimetableSlotRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"success": false,
+			"code":    http.StatusBadRequest,
+			"message": "Dữ liệu cấu hình tiết thời khóa biểu không hợp lệ: " + err.Error(),
+		})
+		return
+	}
+
+	schoolID := resolveSchoolID(c, req.SchoolID)
+
+	slot := curriculum.TimetableSlot{
+		ID:             uuid.New(),
+		SchoolID:       schoolID,
+		AcademicYearID: strings.TrimSpace(req.AcademicYearID),
+		TermID:         strings.TrimSpace(req.TermID),
+		ClassID:        req.ClassID,
+		ClassName:      strings.TrimSpace(req.ClassName),
+		TeacherID:      req.TeacherID,
+		TeacherName:    strings.TrimSpace(req.TeacherName),
+		SubjectID:      strings.TrimSpace(req.SubjectID),
+		DayOfWeek:      req.DayOfWeek,
+		Period:         req.Period,
+		RoomNumber:     strings.TrimSpace(req.RoomNumber),
+		WeekNumber:     req.WeekNumber,
+		CreatedAt:      time.Now(),
+		UpdatedAt:      time.Now(),
+	}
+
+	if err := h.timetableEngine.ValidateSlotBounds(slot); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"success": false,
+			"code":    http.StatusBadRequest,
+			"message": err.Error(),
+		})
+		return
+	}
+
+	database, _ := db.GetDB()
+	enrichSlotMetadata(database, &slot)
+
+	existingSlots := h.gatherExistingSlots(database, schoolID, slot.AcademicYearID, slot.TermID)
+
+	savedSlot, err := h.timetableEngine.ValidateAndAddSlot(existingSlots, slot)
+	if err != nil {
+		if conflict, ok := err.(*curriculum.TimetableConflict); ok {
+			c.JSON(http.StatusConflict, gin.H{
+				"success": false,
+				"code":    http.StatusConflict,
+				"message": conflict.Message,
+				"data":    conflict,
+			})
+			return
+		}
+		c.JSON(http.StatusBadRequest, gin.H{
+			"success": false,
+			"code":    http.StatusBadRequest,
+			"message": err.Error(),
+		})
+		return
+	}
+
+	// Store in memory
+	h.timetableStoreMu.Lock()
+	h.timetableStore[savedSlot.ID] = savedSlot
+	h.timetableStoreMu.Unlock()
+
+	// Persist to Postgres if available
+	if database != nil {
+		persistTimetableSlot(database, savedSlot)
+	}
+
+	c.JSON(http.StatusCreated, gin.H{
+		"success": true,
+		"code":    http.StatusCreated,
+		"message": "Cấu hình tiết thời khóa biểu thành công, đảm bảo định mức Thông tư 05/2025/TT-BGDĐT",
+		"data":    savedSlot,
+	})
+}
+
+// GetTimetableSlots lists scheduled timetable slots with optional filters (GET /api/v1/timetable/slots)
+func (h *APIHandler) GetTimetableSlots(c *gin.Context) {
+	database, _ := db.GetDB()
+	schoolID := resolveSchoolID(c, uuid.Nil)
+
+	academicYear := c.Query("academic_year_id")
+	if academicYear == "" {
+		academicYear = "2026-2027"
+	}
+	termID := c.Query("term_id")
+	if termID == "" {
+		termID = "2026-2027-HK1"
+	}
+
+	var results []curriculum.TimetableSlot
+	if database != nil {
+		if dbSlots, err := loadTimetableSlotsFromDB(database, schoolID, academicYear, termID); err == nil && len(dbSlots) > 0 {
+			results = dbSlots
+		}
+	}
+
+	if len(results) == 0 {
+		h.timetableStoreMu.RLock()
+		for _, s := range h.timetableStore {
+			if s.SchoolID == schoolID && s.AcademicYearID == academicYear && s.TermID == termID {
+				results = append(results, s)
+			}
+		}
+		h.timetableStoreMu.RUnlock()
+	}
+
+	results = filterSlots(results, c.Query("class_id"), c.Query("teacher_id"))
+
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"code":    http.StatusOK,
+		"message": "Lấy danh sách thời khóa biểu thành công",
+		"data":    results,
+	})
+}
+
+// -----------------------------------------------------------------------------
+// Database Persistence Helpers for Lesson Plans & Timetable
+// -----------------------------------------------------------------------------
+
+func persistLessonPlan(database *sql.DB, plan *curriculum.LessonPlan) {
+	objBytes, _ := json.Marshal(plan.Objectives)
+	actBytes, _ := json.Marshal(plan.Activities)
+
+	query := `
+		INSERT INTO lesson_plans (
+			id, school_id, teacher_id, class_id, grade_level, subject_id,
+			title, week_number, duration_slots, curriculum_standard,
+			objectives, equipment, activities, attachment_url, current_status, created_at, updated_at
+		) VALUES (
+			$1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17
+		)
+		ON CONFLICT (id) DO UPDATE SET
+			title = EXCLUDED.title,
+			week_number = EXCLUDED.week_number,
+			duration_slots = EXCLUDED.duration_slots,
+			objectives = EXCLUDED.objectives,
+			equipment = EXCLUDED.equipment,
+			activities = EXCLUDED.activities,
+			attachment_url = EXCLUDED.attachment_url,
+			current_status = EXCLUDED.current_status,
+			updated_at = EXCLUDED.updated_at;
+	`
+	_, _ = database.Exec(query,
+		plan.ID, plan.SchoolID, plan.TeacherID, plan.ClassID, plan.GradeLevel, plan.SubjectID,
+		plan.Title, plan.WeekNumber, plan.DurationSlots, plan.CurriculumStandard,
+		objBytes, plan.Equipment, actBytes, plan.AttachmentURL, plan.CurrentStatus, plan.CreatedAt, plan.UpdatedAt,
+	)
+}
+
+func persistLessonPlanReview(database *sql.DB, review curriculum.LessonPlanReview) {
+	query := `
+		INSERT INTO lesson_plan_reviews (
+			id, lesson_plan_id, reviewer_id, reviewer_role, reviewer_name, action, comments, digital_signature, reviewed_at
+		) VALUES (
+			$1, $2, NULLIF($3, '00000000-0000-0000-0000-000000000000'::uuid), $4, $5, $6, $7, $8, $9
+		)
+		ON CONFLICT (id) DO NOTHING;
+	`
+	_, _ = database.Exec(query,
+		review.ID, review.LessonPlanID, review.ReviewerID, review.ReviewerRole, review.ReviewerName,
+		review.Action, review.Comments, review.DigitalSignature, review.ReviewedAt,
+	)
+}
+
+func loadLessonPlanFromDB(database *sql.DB, planID uuid.UUID) (*curriculum.LessonPlan, error) {
+	query := `
+		SELECT lp.id, lp.school_id, lp.teacher_id, COALESCE(st.full_name, ''), lp.class_id,
+		       lp.grade_level, lp.subject_id, lp.title, lp.week_number, lp.duration_slots,
+		       lp.curriculum_standard, lp.objectives, lp.equipment, lp.activities,
+		       COALESCE(lp.attachment_url, ''), lp.current_status, lp.created_at, lp.updated_at
+		FROM lesson_plans lp
+		LEFT JOIN staffs st ON lp.teacher_id = st.id
+		WHERE lp.id = $1;
+	`
+	row := database.QueryRow(query, planID)
+
+	var p curriculum.LessonPlan
+	var objBytes, actBytes []byte
+	var status string
+	err := row.Scan(
+		&p.ID, &p.SchoolID, &p.TeacherID, &p.TeacherName, &p.ClassID,
+		&p.GradeLevel, &p.SubjectID, &p.Title, &p.WeekNumber, &p.DurationSlots,
+		&p.CurriculumStandard, &objBytes, &p.Equipment, &actBytes,
+		&p.AttachmentURL, &status, &p.CreatedAt, &p.UpdatedAt,
+	)
+	if err != nil {
+		return nil, err
+	}
+	p.CurrentStatus = curriculum.PlanStatus(status)
+	_ = json.Unmarshal(objBytes, &p.Objectives)
+	_ = json.Unmarshal(actBytes, &p.Activities)
+
+	// Load reviews
+	revQuery := `
+		SELECT id, lesson_plan_id, COALESCE(reviewer_id, '00000000-0000-0000-0000-000000000000'::uuid),
+		       reviewer_role, COALESCE(reviewer_name, ''), action, COALESCE(comments, ''),
+		       COALESCE(digital_signature, ''), reviewed_at
+		FROM lesson_plan_reviews
+		WHERE lesson_plan_id = $1
+		ORDER BY reviewed_at ASC;
+	`
+	rows, err := database.Query(revQuery, planID)
+	if err == nil {
+		defer rows.Close()
+		for rows.Next() {
+			var r curriculum.LessonPlanReview
+			var act string
+			if scanErr := rows.Scan(
+				&r.ID, &r.LessonPlanID, &r.ReviewerID, &r.ReviewerRole,
+				&r.ReviewerName, &act, &r.Comments, &r.DigitalSignature, &r.ReviewedAt,
+			); scanErr == nil {
+				r.Action = curriculum.ReviewAction(act)
+				p.Reviews = append(p.Reviews, r)
+			}
+		}
+	}
+
+	return &p, nil
+}
+
+func listLessonPlansFromDB(database *sql.DB, schoolID uuid.UUID) ([]*curriculum.LessonPlan, error) {
+	query := `
+		SELECT lp.id, lp.school_id, lp.teacher_id, COALESCE(st.full_name, ''), lp.class_id,
+		       lp.grade_level, lp.subject_id, lp.title, lp.week_number, lp.duration_slots,
+		       lp.curriculum_standard, lp.objectives, lp.equipment, lp.activities,
+		       COALESCE(lp.attachment_url, ''), lp.current_status, lp.created_at, lp.updated_at
+		FROM lesson_plans lp
+		LEFT JOIN staffs st ON lp.teacher_id = st.id
+		WHERE lp.school_id = $1
+		ORDER BY lp.week_number DESC, lp.created_at DESC;
+	`
+	rows, err := database.Query(query, schoolID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var plans []*curriculum.LessonPlan
+	for rows.Next() {
+		var p curriculum.LessonPlan
+		var objBytes, actBytes []byte
+		var status string
+		if scanErr := rows.Scan(
+			&p.ID, &p.SchoolID, &p.TeacherID, &p.TeacherName, &p.ClassID,
+			&p.GradeLevel, &p.SubjectID, &p.Title, &p.WeekNumber, &p.DurationSlots,
+			&p.CurriculumStandard, &objBytes, &p.Equipment, &actBytes,
+			&p.AttachmentURL, &status, &p.CreatedAt, &p.UpdatedAt,
+		); scanErr == nil {
+			p.CurrentStatus = curriculum.PlanStatus(status)
+			_ = json.Unmarshal(objBytes, &p.Objectives)
+			_ = json.Unmarshal(actBytes, &p.Activities)
+			plans = append(plans, &p)
+		}
+	}
+	return plans, nil
+}
+
+func persistTimetableSlot(database *sql.DB, slot curriculum.TimetableSlot) {
+	query := `
+		INSERT INTO timetable_slots (
+			id, school_id, academic_year_id, term_id, class_id, teacher_id, subject_id,
+			day_of_week, period, room_number, week_number, created_at, updated_at
+		) VALUES (
+			$1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13
+		)
+		ON CONFLICT (id) DO UPDATE SET
+			room_number = EXCLUDED.room_number,
+			updated_at = EXCLUDED.updated_at;
+	`
+	_, _ = database.Exec(query,
+		slot.ID, slot.SchoolID, slot.AcademicYearID, slot.TermID, slot.ClassID, slot.TeacherID, slot.SubjectID,
+		slot.DayOfWeek, slot.Period, slot.RoomNumber, slot.WeekNumber, slot.CreatedAt, slot.UpdatedAt,
+	)
+}
+
+func loadTimetableSlotsFromDB(database *sql.DB, schoolID uuid.UUID, academicYearID, termID string) ([]curriculum.TimetableSlot, error) {
+	query := `
+		SELECT ts.id, ts.school_id, ts.academic_year_id, ts.term_id, ts.class_id,
+		       COALESCE(c.name, ''), ts.teacher_id, COALESCE(st.full_name, ''), ts.subject_id,
+		       ts.day_of_week, ts.period, COALESCE(ts.room_number, ''), ts.week_number,
+		       ts.created_at, ts.updated_at
+		FROM timetable_slots ts
+		LEFT JOIN classes c ON ts.class_id = c.id
+		LEFT JOIN staffs st ON ts.teacher_id = st.id
+		WHERE ts.school_id = $1 AND ts.academic_year_id = $2 AND ts.term_id = $3
+		ORDER BY ts.day_of_week ASC, ts.period ASC;
+	`
+	rows, err := database.Query(query, schoolID, academicYearID, termID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var slots []curriculum.TimetableSlot
+	for rows.Next() {
+		var s curriculum.TimetableSlot
+		if scanErr := rows.Scan(
+			&s.ID, &s.SchoolID, &s.AcademicYearID, &s.TermID, &s.ClassID,
+			&s.ClassName, &s.TeacherID, &s.TeacherName, &s.SubjectID,
+			&s.DayOfWeek, &s.Period, &s.RoomNumber, &s.WeekNumber,
+			&s.CreatedAt, &s.UpdatedAt,
+		); scanErr == nil {
+			slots = append(slots, s)
+		}
+	}
+	return slots, nil
 }

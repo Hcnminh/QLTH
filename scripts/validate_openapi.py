@@ -172,7 +172,11 @@ def check_router_coverage(doc: dict) -> None:
     registered: set[str] = set()
     missing: set[str] = set()
     for _method, path in route_re.findall(source):
-        candidates = [p + path for p in prefixes]
+        candidates = []
+        for p in prefixes:
+            raw = p + path
+            candidates.append(raw)
+            candidates.append(re.sub(r':([a-zA-Z0-9_]+)', r'{\1}', raw))
         match = next((c for c in candidates if c in spec_paths), None)
         if match:
             registered.add(match)
