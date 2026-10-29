@@ -18,6 +18,7 @@ import (
 	"qlth/internal/core/kpi"
 	"qlth/internal/core/teaching"
 	"qlth/internal/db"
+	"qlth/internal/integrations/sandbox"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
@@ -31,6 +32,11 @@ type APIHandler struct {
 	timetableEngine  *curriculum.TimetableEngine
 	boardingEngine   *boarding.NutritionEngine
 	healthEngine     *health.Engine
+	vneidSandbox     *sandbox.VNeIDService
+	smartCASandbox   *sandbox.SmartCAService
+	moetSandbox      *sandbox.MOETSyncService
+	vietQRSandbox    *sandbox.VietQRService
+	einvoiceSandbox  *sandbox.EInvoiceService
 	planStoreMu      sync.RWMutex
 	planStore        map[uuid.UUID]*curriculum.LessonPlan
 	timetableStoreMu sync.RWMutex
@@ -52,6 +58,11 @@ func NewAPIHandler() *APIHandler {
 		timetableEngine:  curriculum.NewTimetableEngine(),
 		boardingEngine:   boarding.NewNutritionEngine(),
 		healthEngine:     health.NewEngine(),
+		vneidSandbox:     sandbox.NewVNeIDService(),
+		smartCASandbox:   sandbox.NewSmartCAService(),
+		moetSandbox:      sandbox.NewMOETSyncService(),
+		vietQRSandbox:    sandbox.NewVietQRService(),
+		einvoiceSandbox:  sandbox.NewEInvoiceService(),
 		planStore:        make(map[uuid.UUID]*curriculum.LessonPlan),
 		timetableStore:   make(map[uuid.UUID]curriculum.TimetableSlot),
 		menuStore:        make(map[uuid.UUID]*domain.BoardingMenu),

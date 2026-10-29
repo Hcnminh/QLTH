@@ -342,6 +342,54 @@ http_case "student-health-medical-event-add" POST "/api/v1/students/c0000000-000
   '{"event_type":"SƠ_CẤP_CỨU","symptoms":"Trầy da nhẹ ở đầu gối do chạy ngã","treatment":"Rửa nước muối sinh lý, sát khuẩn Betadine và dán gạc cá nhân","parent_notified":true}' \
   201 "Y_TE"
 
+# --- 12. Cổng tích hợp ngoại vi Sandbox Stubs (VAL-DOGFOOD-005) ---
+# Ký số tập trung SmartCA kèm dấu thời gian TSA -> 200 OK (CMS/PKCS#7 & TSA token)
+http_case "integration-smartca-sign" POST "/api/v1/integrations/smartca/sign" \
+  '{"document_id":"d1000000-0000-0000-0000-000000000001","document_type":"TRANSCRIPT_SNAPSHOT","signer_id":"b0000000-0000-0000-0000-000000000001","signer_name":"Trần Thị Bình","signer_role":"GVCN"}' \
+  200 "GVCN"
+grep -q '"environment":"SANDBOX_STUB"' "$LOG_DIR/last-response.json" && grep -q '"signature_format":"CMS/PKCS#7"' "$LOG_DIR/last-response.json" && grep -q '"tsa_provider":' "$LOG_DIR/last-response.json" \
+  && log_case "smartca-cms-tsa-stub" 0 0 "(chữ ký số SmartCA CMS/PKCS#7 và dấu thời gian TSA)" \
+  || log_case "smartca-cms-tsa-stub" 0 1 "thiếu chữ ký CMS hoặc dấu thời gian TSA"
+
+# Sinh mã VietQR động chuẩn EMVCo và URL ảnh -> 200 OK
+http_case "integration-vietqr-generate" POST "/api/v1/integrations/vietqr/generate" \
+  '{"bank_bin":"970422","account_number":"0123456789","account_name":"Truong Tieu Hoc EduPrimary","amount":550000,"description":"TIEN AN BAN TRU THANG 11"}' \
+  200 "KE_TOAN"
+grep -q '"environment":"SANDBOX_STUB"' "$LOG_DIR/last-response.json" && grep -q '"qr_string":"000201010212' "$LOG_DIR/last-response.json" && grep -q 'img.vietqr.io' "$LOG_DIR/last-response.json" \
+  && log_case "vietqr-emvco-dynamic" 0 0 "(mã VietQR động chuẩn EMVCo và URL ảnh thanh toán)" \
+  || log_case "vietqr-emvco-dynamic" 0 1 "chuỗi QR không đúng chuẩn EMVCo hoặc thiếu URL ảnh"
+
+# Đồng bộ hàng đợi Outbox lên CSDL Ngành Giáo dục MOET -> 200 OK
+http_case "integration-moet-sync" POST "/api/v1/integrations/moet/sync" \
+  '{"school_id":"00000000-0000-0000-0000-000000000001","academic_year":"2026-2027","sync_type":"ALL","batch_size":20}' \
+  200 "BGH"
+grep -q '"environment":"SANDBOX_STUB"' "$LOG_DIR/last-response.json" && grep -q '"moet_transaction_id":' "$LOG_DIR/last-response.json" && grep -q '"status":"COMPLETED"' "$LOG_DIR/last-response.json" \
+  && log_case "moet-outbox-sync-batch" 0 0 "(xử lý hàng đợi Outbox đồng bộ CSDL MOET thành công)" \
+  || log_case "moet-outbox-sync-batch" 0 1 "đồng bộ Outbox MOET thất bại"
+
+# Xác thực định danh điện tử VNeID Mức 2 (NĐ 69/2024 & NĐ 13/2023) -> 200 OK
+http_case "integration-vneid-verify-lvl2" POST "/api/v1/integrations/vneid/verify" \
+  '{"national_id":"001202012345","full_name":"Nguyễn Văn An","date_of_birth":"2018-05-15","gender":"MALE","consent_granted":true}' \
+  200 "VAN_THU"
+grep -q '"environment":"SANDBOX_STUB"' "$LOG_DIR/last-response.json" && grep -q '"verification_level":"LEVEL_2"' "$LOG_DIR/last-response.json" && grep -q '"biometric_matched":true' "$LOG_DIR/last-response.json" \
+  && log_case "vneid-level2-verified" 0 0 "(xác thực VNeID Mức độ 2 sinh trắc học thành công)" \
+  || log_case "vneid-level2-verified" 0 1 "xác thực VNeID Level 2 thất bại"
+
+# Mô phỏng phát hành hóa đơn điện tử Nghị định 123/2020/NĐ-CP -> 200 OK
+http_case "integration-einvoice-issue" POST "/api/v1/integrations/einvoice/issue" \
+  '{"school_id":"00000000-0000-0000-0000-000000000001","buyer_name":"Trần Văn Hùng","student_name":"Trần Bảo Nam","student_class":"5A1","items":[{"name":"Tiền ăn bán trú tháng 11/2026","unit":"Tháng","quantity":1,"unit_price":660000,"vat_rate":0}]}' \
+  200 "KE_TOAN"
+grep -q '"environment":"SANDBOX_STUB"' "$LOG_DIR/last-response.json" && grep -q '"invoice_series":"1C26TAA"' "$LOG_DIR/last-response.json" && grep -q '"status":"ISSUED"' "$LOG_DIR/last-response.json" \
+  && log_case "einvoice-decree123-issued" 0 0 "(phát hành hóa đơn điện tử NĐ 123 ký hiệu 1C26TAA)" \
+  || log_case "einvoice-decree123-issued" 0 1 "phát hành hóa đơn điện tử thất bại"
+
+# Kiểm tra trạng thái toàn bộ 5 cổng kết nối sandbox -> 200 OK
+http_case "integration-sandbox-status-all" GET "/api/v1/integrations/sandbox/status" \
+  "-" 200 "BGH"
+grep -q '"environment":"SANDBOX_STUB"' "$LOG_DIR/last-response.json" && grep -q 'ACTIVE_SANDBOX' "$LOG_DIR/last-response.json" \
+  && log_case "sandbox-status-verified" 0 0 "(toàn bộ 5 sandbox stubs hoạt động ACTIVE_SANDBOX)" \
+  || log_case "sandbox-status-verified" 0 1 "trạng thái sandbox stubs không hợp lệ"
+
 # ---------------------------------------------------------------- REPORT
 echo
 echo "== KẾT QUẢ =="

@@ -1414,6 +1414,281 @@ paths:
         '403':
           $ref: '#/components/responses/Forbidden'
 
+  /api/v1/integrations/smartca/sign:
+    post:
+      tags: [integrations]
+      summary: Ký số điện tử SmartCA và cấp dấu thời gian TSA
+      description: |
+        Ký số tập trung qua nhà cung cấp SmartCA trên môi trường Sandbox Stub,
+        trả về chữ ký mô phỏng chuẩn CMS/PKCS#7 và dấu thời gian TSA (RFC 3161).
+        Tuân thủ Luật Giao dịch điện tử 2023 và Thông tư 03/2018/TT-BGDĐT.
+      operationId: signSmartCA
+      parameters:
+        - $ref: '#/components/parameters/SchoolId'
+        - $ref: '#/components/parameters/UserRole'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [document_id, signer_id, signer_name, signer_role]
+              properties:
+                document_id:
+                  type: string
+                  format: uuid
+                document_type:
+                  type: string
+                  example: TRANSCRIPT_SNAPSHOT
+                document_hash:
+                  type: string
+                signer_id:
+                  type: string
+                  format: uuid
+                signer_name:
+                  type: string
+                signer_role:
+                  type: string
+                  example: GVCN
+      responses:
+        '200':
+          description: Ký số SmartCA thành công
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/MissingSchoolId'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  /api/v1/integrations/vietqr/generate:
+    post:
+      tags: [integrations]
+      summary: Sinh mã VietQR động chuẩn EMVCo và URL ảnh
+      description: |
+        Sinh mã VietQR động chuẩn EMVCo thanh toán tiền ăn, học phí bán trú
+        theo Quyết định 1927/QĐ-NHNN và NAPAS 247.
+      operationId: generateVietQR
+      parameters:
+        - $ref: '#/components/parameters/SchoolId'
+        - $ref: '#/components/parameters/UserRole'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [bank_bin, account_number, amount, description]
+              properties:
+                bank_bin:
+                  type: string
+                  example: "970422"
+                account_number:
+                  type: string
+                  example: "0123456789"
+                account_name:
+                  type: string
+                  example: "Truong Tieu Hoc EduPrimary"
+                amount:
+                  type: number
+                  example: 550000
+                description:
+                  type: string
+                  example: "TIEN AN BAN TRU THANG 11"
+      responses:
+        '200':
+          description: Sinh mã VietQR thành công
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/MissingSchoolId'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  /api/v1/integrations/moet/sync:
+    post:
+      tags: [integrations]
+      summary: Đồng bộ hàng đợi Outbox lên CSDL Ngành Giáo dục MOET
+      description: |
+        Xử lý hàng đợi Outbox đồng bộ hồ sơ học sinh và học bạ số lên
+        CSDL ngành Giáo dục và Đào tạo theo Thông tư 42/2021/TT-BGDĐT.
+      operationId: syncMOET
+      parameters:
+        - $ref: '#/components/parameters/SchoolId'
+        - $ref: '#/components/parameters/UserRole'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [academic_year, sync_type]
+              properties:
+                school_id:
+                  type: string
+                  format: uuid
+                academic_year:
+                  type: string
+                  example: "2026-2027"
+                sync_type:
+                  type: string
+                  example: "ALL"
+                batch_size:
+                  type: integer
+                  example: 50
+      responses:
+        '200':
+          description: Đồng bộ hàng đợi MOET thành công
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/MissingSchoolId'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  /api/v1/integrations/moet/queue:
+    get:
+      tags: [integrations]
+      summary: Kiểm tra trạng thái hàng đợi Outbox MOET
+      description: Lấy số lượng bản ghi học sinh và học bạ số đang chờ đồng bộ lên MOET CSDL.
+      operationId: getMOETQueue
+      parameters:
+        - $ref: '#/components/parameters/SchoolId'
+        - $ref: '#/components/parameters/UserRole'
+        - name: school_id
+          in: query
+          required: false
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Trạng thái hàng đợi
+        '401':
+          $ref: '#/components/responses/MissingSchoolId'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  /api/v1/integrations/vneid/verify:
+    post:
+      tags: [integrations]
+      summary: Xác thực định danh điện tử VNeID Mức 2
+      description: |
+        Xác thực thông tin định danh công dân mức độ 2 kết nối C06 Bộ Công an
+        theo Nghị định 69/2024/NĐ-CP và kiểm tra Digital Consent Nghị định 13/2023/NĐ-CP.
+      operationId: verifyVNeID
+      parameters:
+        - $ref: '#/components/parameters/SchoolId'
+        - $ref: '#/components/parameters/UserRole'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [national_id, full_name, consent_granted]
+              properties:
+                national_id:
+                  type: string
+                  example: "001202012345"
+                full_name:
+                  type: string
+                  example: "Nguyễn Văn An"
+                date_of_birth:
+                  type: string
+                  example: "2018-05-15"
+                gender:
+                  type: string
+                  example: "MALE"
+                consent_granted:
+                  type: boolean
+                  example: true
+      responses:
+        '200':
+          description: Xác thực VNeID Mức 2 thành công
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/MissingSchoolId'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '422':
+          description: Chưa có sự đồng thuận số theo NĐ 13/2023
+
+  /api/v1/integrations/einvoice/issue:
+    post:
+      tags: [integrations]
+      summary: Phát hành hóa đơn điện tử Nghị định 123/2020/NĐ-CP
+      description: |
+        Phát hành hóa đơn điện tử học phí, tiền ăn bán trú có mã cơ quan thuế
+        tuân thủ Nghị định 123/2020/NĐ-CP và Thông tư 78/2021/TT-BTC.
+      operationId: issueEInvoice
+      parameters:
+        - $ref: '#/components/parameters/SchoolId'
+        - $ref: '#/components/parameters/UserRole'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [buyer_name, items]
+              properties:
+                school_id:
+                  type: string
+                  format: uuid
+                buyer_name:
+                  type: string
+                  example: "Trần Văn Hùng"
+                buyer_tax_code:
+                  type: string
+                student_name:
+                  type: string
+                  example: "Trần Bảo Nam"
+                student_class:
+                  type: string
+                  example: "5A1"
+                items:
+                  type: array
+                  items:
+                    type: object
+                    required: [name, quantity, unit_price]
+                    properties:
+                      name:
+                        type: string
+                      unit:
+                        type: string
+                      quantity:
+                        type: number
+                      unit_price:
+                        type: number
+                      vat_rate:
+                        type: number
+      responses:
+        '200':
+          description: Phát hành hóa đơn điện tử thành công
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/MissingSchoolId'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  /api/v1/integrations/sandbox/status:
+    get:
+      tags: [integrations]
+      summary: Trạng thái các cổng tích hợp Sandbox Stubs
+      description: Trả về trạng thái hoạt động và đặc tả kỹ thuật của toàn bộ 5 hệ thống sandbox ngoại vi.
+      operationId: getSandboxStatus
+      parameters:
+        - $ref: '#/components/parameters/SchoolId'
+        - $ref: '#/components/parameters/UserRole'
+      responses:
+        '200':
+          description: Danh sách trạng thái 5 cổng sandbox stubs
+        '401':
+          $ref: '#/components/responses/MissingSchoolId'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
 components:
   parameters:
     SchoolId:

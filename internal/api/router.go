@@ -142,6 +142,36 @@ func SetupRouter() *gin.Engine {
 			middleware.RequireRole("BGH", "Y_TE", "NHAN_VIEN_Y_TE"),
 			h.AddMedicalEvent,
 		)
+
+		// External Integration Sandbox Stubs (Phân hệ 7, 9, 10)
+		v1.POST("/integrations/smartca/sign",
+			middleware.RequireRole("BGH", "GVCN", "GVBM", "TO_TRUONG", "GV"),
+			h.SignSmartCA,
+		)
+		v1.POST("/integrations/vietqr/generate",
+			middleware.RequireRole("BGH", "KE_TOAN", "GVCN", "PHHS"),
+			h.GenerateVietQR,
+		)
+		v1.POST("/integrations/moet/sync",
+			middleware.RequireRole("BGH", "VAN_THU"),
+			h.SyncMOET,
+		)
+		v1.GET("/integrations/moet/queue",
+			middleware.RequireRole("BGH", "VAN_THU"),
+			h.GetMOETQueue,
+		)
+		v1.POST("/integrations/vneid/verify",
+			middleware.RequireRole("BGH", "VAN_THU", "GVCN", "PHHS"),
+			h.VerifyVNeID,
+		)
+		v1.POST("/integrations/einvoice/issue",
+			middleware.RequireRole("BGH", "KE_TOAN"),
+			h.IssueEInvoice,
+		)
+		v1.GET("/integrations/sandbox/status",
+			middleware.RequireRole("BGH", "KE_TOAN", "VAN_THU", "GVCN", "GVBM", "PHHS", "Y_TE", "TO_TRUONG"),
+			h.GetSandboxStatus,
+		)
 	}
 
 	return r
