@@ -1,4 +1,4 @@
-.PHONY: all deps build test qa run lint fmt-check docs clean docker-up docker-down
+.PHONY: all deps build test qa run lint fmt-check docs clean docker-up docker-down db-init db-test
 
 all: build test
 
@@ -11,6 +11,12 @@ build:
 
 test:
 	go test -v -count=1 ./...
+
+db-init:
+	./scripts/init_db.sh
+
+db-test:
+	./scripts/test_db_schema.sh
 
 qa:
 	./scripts/qa_e2e.sh
