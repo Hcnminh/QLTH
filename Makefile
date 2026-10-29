@@ -10,7 +10,7 @@ build:
 	go build -v -o bin/api ./cmd/api
 
 test:
-	go test -v -count=1 ./...
+	go test -v -count=1 -p 1 ./...
 
 test-browser:
 	NODE_PATH="$${NODE_PATH:-/usr/local/lib/node_modules}" node scripts/qa_browser.js

@@ -111,13 +111,26 @@ Chạy bộ kiểm thử tự động trình duyệt bằng lệnh:
 make test-browser
 ```
 
-Bộ kiểm thử [`scripts/qa_browser.js`](scripts/qa_browser.js) sử dụng Playwright headless Chromium để tự động xác thực:
+Bộ kiểm thử [`scripts/qa_browser.js`](scripts/qa_browser.js) sử dụng Playwright headless Chromium để tự động xác thực toàn diện:
 1. **Kiểm tra sức khỏe hệ thống**: Endpoint công khai `GET /health`.
 2. **Quy trình xác thực**: Đăng nhập qua `/admin/login` với tài khoản quản trị mặc định (`admin` / `admin`).
-3. **Bảng điều khiển trung tâm (Dashboard)**: Kiểm tra nhận diện thương hiệu EduPrimary-KPI và các menu nghiệp vụ.
-4. **Quản lý Giáo viên & Định mức (TT 05/2025/TT-BGDĐT)**: Kiểm tra bảng `/admin/info/staffs`, chuẩn 805 tiết/năm và giảm 4 tiết/tuần cho GVCN.
-5. **Hồ sơ Học sinh & Consent (NĐ 13/2023/NĐ-CP)**: Kiểm tra bảng `/admin/info/students`, định danh VNeID và trạng thái đồng thuận kỹ thuật số của phụ huynh.
-6. **Đánh giá KPI 360 & Xếp loại Thi đua (NĐ 90/2020 & NĐ 48/2023)**: Kiểm tra bảng `/admin/info/kpi_evaluations`, tính điểm 4 chiều (40-30-15-15) và thực thi trần 20% danh hiệu Hoàn thành xuất sắc.
+3. **Bảng điều khiển trung tâm (Dashboard)**: Kiểm tra nhận diện thương hiệu EduPrimary-KPI và toàn bộ 11 menu nghiệp vụ.
+4. **Toàn bộ 11 bảng giao diện GoAdmin (10 phân hệ nghiệp vụ)**:
+   - Phân hệ 1: Hồ sơ Học sinh & Consent NĐ 13/2023 (`/admin/info/students`)
+   - Phân hệ 2: Danh mục Môn học (`/admin/info/subjects`), Đánh giá Môn học (`/admin/info/student_subject_evaluations`), Đánh giá Năng lực - Phẩm chất TT 27/TT 89 (`/admin/info/student_behavior_evaluations`)
+   - Phân hệ 3: Giáo viên & Định mức TT 05/2025 (`/admin/info/staffs`), Lớp học (`/admin/info/classes`), Kế hoạch bài dạy CV 2345/STEM (`/admin/info/lesson_plans`)
+   - Phân hệ 4: Thực đơn Dinh dưỡng & Lưu mẫu 24h QĐ 1246/QĐ-BYT (`/admin/info/boarding_menus`)
+   - Phân hệ 5: Hồ sơ Sức khỏe Học sinh & Chỉ số BMI (`/admin/info/student_health_records`)
+   - Phân hệ 8: Đánh giá KPI 360 độ & Trần 20% NĐ 90/48 (`/admin/info/kpi_evaluations`)
+   - Phân hệ 9: Học bạ số Bất biến & Chữ ký số SmartCA TSA (`/admin/info/academic_transcripts_snapshots`)
+5. **Đa vai trò người dùng (Multi-Role Workflows)**:
+   - **BGH**: Kiểm tra định mức 805h, xếp TKB chống trùng lịch, phân giải TT 27/89 mốc 01/12/2026, đồng bộ CSDL MOET Outbox.
+   - **GVCN**: Nhập đánh giá năng lực - phẩm chất (T/D/C), gợi ý nhận xét AI Copilot, ký số học bạ SmartCA.
+   - **GVBM**: Nộp giáo án CV 2345 4 bước, nhập điểm thi và đánh giá môn học (HTT/10.0).
+   - **Kế toán**: Lập thực đơn dinh dưỡng chuẩn Kcal, sinh mã VietQR EMVCo thanh toán bán trú, xuất hóa đơn điện tử NĐ 123.
+   - **Y tế**: Xác nhận lưu mẫu thức ăn 24h ở 4°C, ghi nhật ký sơ cấp cứu phòng y tế học đường.
+   - **Văn thư**: Tuyển sinh học sinh có consent NĐ 13 Điều 20, xác thực định danh VNeID Mức 2 sinh trắc học.
+   - **Phụ huynh**: Báo cắt ăn trưa trước 8h hoàn tiền tự động, gửi đơn thuốc nhờ cô y tế cho uống.
 
 ### Ảnh chụp màn hình giao diện (Visual Screenshots)
 
@@ -128,8 +141,16 @@ Bộ ảnh chụp trực quan độ phân giải cao được lưu trữ tại t
 | **Đăng nhập Quản trị** | [`01_login_page.png`](docs/screenshots/01_login_page.png) | Giao diện đăng nhập hệ thống EduPrimary-KPI GoAdmin |
 | **Bảng điều khiển (Dashboard)** | [`02_dashboard.png`](docs/screenshots/02_dashboard.png) | Trung tâm điều hành chỉ số giáo viên, học sinh, KPI và RBAC |
 | **Giáo viên & Định mức** | [`03_staff_table.png`](docs/screenshots/03_staff_table.png) | Quản lý giáo viên, phân công GVCN và định mức theo TT 05/2025 |
-| **Học sinh & Consent NĐ 13** | [`04_student_table.png`](docs/screenshots/04_student_table.png) | Hồ sơ học sinh và trạng thái bảo vệ dữ liệu trẻ em NĐ 13/2023 |
+| **Hồ sơ Học sinh & Consent** | [`04_student_table.png`](docs/screenshots/04_student_table.png) | Hồ sơ học sinh và trạng thái bảo vệ dữ liệu trẻ em NĐ 13/2023 |
 | **Đánh giá KPI 360** | [`05_kpi_table.png`](docs/screenshots/05_kpi_table.png) | Bảng tổng hợp KPI 360 độ, xếp loại thi đua và khống chế trần 20% |
+| **Quản lý Lớp học** | [`06_classes_management.png`](docs/screenshots/06_classes_management.png) | Danh sách lớp học 1-5, phòng học và GVCN |
+| **Kế hoạch Bài dạy CV 2345** | [`07_lesson_plans_cv2345.png`](docs/screenshots/07_lesson_plans_cv2345.png) | Kế hoạch bài dạy chuẩn CV 2345 & STEM TT 86, trạng thái phê duyệt |
+| **Danh mục Môn học** | [`08_subjects_catalog.png`](docs/screenshots/08_subjects_catalog.png) | Danh mục môn học, hình thức kiểm tra điểm số / nhận xét CT GDPT 2018 |
+| **Đánh giá Môn học** | [`09_subject_evaluations_tt27_89.png`](docs/screenshots/09_subject_evaluations_tt27_89.png) | Đánh giá môn học theo TT 27/2020 và TT 89/2026 (HTT/HT/CHT) |
+| **Đánh giá Năng lực - Phẩm chất** | [`10_behavior_competency_evaluations.png`](docs/screenshots/10_behavior_competency_evaluations.png) | Đánh giá 5 phẩm chất, 10 năng lực cốt lõi theo thang T/D/C |
+| **Học bạ số Snapshot SmartCA** | [`11_transcripts_smartca_snapshot.png`](docs/screenshots/11_transcripts_smartca_snapshot.png) | Snapshot học bạ số bất biến kèm chữ ký số và dấu thời gian TSA |
+| **Thực đơn Bán trú Dinh dưỡng** | [`12_boarding_nutrition_menu.png`](docs/screenshots/12_boarding_nutrition_menu.png) | Cân bằng Kcal/P:L:G Viện Dinh Dưỡng và lưu mẫu 24h QĐ 1246/QĐ-BYT |
+| **Hồ sơ Sức khỏe & BMI** | [`13_student_health_bmi.png`](docs/screenshots/13_student_health_bmi.png) | Theo dõi BMI, thị lực học đường, nha khoa và nhật ký y tế |
 
 ## Tài liệu dự án
 

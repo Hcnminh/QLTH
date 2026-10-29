@@ -39,6 +39,8 @@ Vai trò hợp lệ: `BGH`, `TO_TRUONG`, `GVCN`, `GVBM`, `KE_TOAN`, `VAN_THU`, `
 | Method | Path | Tóm tắt |
 |---|---|---|
 | `GET` | [`/api/v1/boarding/menus`](#listboardingmenus) | Lấy danh sách thực đơn và phân tích dinh dưỡng |
+| `GET` | [`/api/v1/integrations/moet/queue`](#getmoetqueue) | Kiểm tra trạng thái hàng đợi Outbox MOET |
+| `GET` | [`/api/v1/integrations/sandbox/status`](#getsandboxstatus) | Trạng thái các cổng tích hợp Sandbox Stubs |
 | `GET` | [`/api/v1/lesson-plans`](#listlessonplans) | Danh sách kế hoạch bài dạy của trường |
 | `GET` | [`/api/v1/lesson-plans/{id}`](#getlessonplan) | Chi tiết kế hoạch bài dạy và lịch sử góp ý |
 | `GET` | [`/api/v1/students/{id}/health`](#getstudenthealthprofile) | Lấy hồ sơ sức khỏe và nhật ký y tế học sinh |
@@ -50,6 +52,11 @@ Vai trò hợp lệ: `BGH`, `TO_TRUONG`, `GVCN`, `GVBM`, `KE_TOAN`, `VAN_THU`, `
 | `POST` | [`/api/v1/evaluations/ai-copilot`](#aipedagogicalcopilot) | Trợ lý sư phạm gợi ý nhận xét học sinh |
 | `POST` | [`/api/v1/evaluations/behaviors`](#recordbehaviorevaluation) | Đánh giá phẩm chất và năng lực học sinh |
 | `POST` | [`/api/v1/evaluations/subject-scores`](#recordsubjectscore) | Nhập đánh giá kết quả học tập môn học |
+| `POST` | [`/api/v1/integrations/einvoice/issue`](#issueeinvoice) | Phát hành hóa đơn điện tử Nghị định 123/2020/NĐ-CP |
+| `POST` | [`/api/v1/integrations/moet/sync`](#syncmoet) | Đồng bộ hàng đợi Outbox lên CSDL Ngành Giáo dục MOET |
+| `POST` | [`/api/v1/integrations/smartca/sign`](#signsmartca) | Ký số điện tử SmartCA và cấp dấu thời gian TSA |
+| `POST` | [`/api/v1/integrations/vietqr/generate`](#generatevietqr) | Sinh mã VietQR động chuẩn EMVCo và URL ảnh |
+| `POST` | [`/api/v1/integrations/vneid/verify`](#verifyvneid) | Xác thực định danh điện tử VNeID Mức 2 |
 | `POST` | [`/api/v1/kpi/evaluate-individual`](#evaluateindividualkpi) | Đánh giá KPI 360 độ cho một cán bộ/giáo viên |
 | `POST` | [`/api/v1/kpi/evaluate-school-batch`](#evaluateschoolbatchkpi) | Xếp loại KPI toàn trường kèm trần 20% xuất sắc |
 | `POST` | [`/api/v1/lesson-plans/submit`](#submitlessonplan) | Nộp kế hoạch bài dạy (CV 2345 / STEM TT 86) |
@@ -1018,5 +1025,232 @@ Role được phép: `BGH`, `TO_TRUONG`, `GVCN`, `GVBM`, `SUPER_ADMIN`.
 | `401` | Thiếu header X-School-ID |
 | `403` | Role không được phép truy cập endpoint này |
 | `409` | Phát hiện xung đột thời khóa biểu vi phạm Thông tư 05/2025/TT-BGDĐT |
+
+---
+
+## integrations
+
+### `POST /api/v1/integrations/smartca/sign`
+
+<a id="signsmartca"></a>
+
+**Ký số điện tử SmartCA và cấp dấu thời gian TSA**
+
+Ký số tập trung qua nhà cung cấp SmartCA trên môi trường Sandbox Stub,
+trả về chữ ký mô phỏng chuẩn CMS/PKCS#7 và dấu thời gian TSA (RFC 3161).
+Tuân thủ Luật Giao dịch điện tử 2023 và Thông tư 03/2018/TT-BGDĐT.
+
+| Tên | Vị trí | Kiểu | Bắt buộc | Mô tả |
+|---|---|---|---|---|
+| `X-School-ID` | header | string | Có | UUID của trường (multi-tenancy). Thiếu header này trả 401. |
+| `X-User-Role` | header | string | Có | Vai trò người gọi. `SUPER_ADMIN` bypass mọi kiểm tra role. Giá trị: `BGH`, `TO_TRUONG`, `GVCN`, `GVBM`, `KE_TOAN`, `VAN_THU`, `PHHS`, `Y_TE`, `NHAN_VIEN_Y_TE`, `BEP_TRUONG`, `SUPER_ADMIN`. |
+
+### Request body
+
+| Trường | Kiểu | Bắt buộc | Mô tả |
+|---|---|---|---|
+| `document_id` | string (uuid) | Có |  |
+| `document_type` | string | Không |  |
+| `document_hash` | string | Không |  |
+| `signer_id` | string (uuid) | Có |  |
+| `signer_name` | string | Có |  |
+| `signer_role` | string | Có |  |
+
+### Responses
+
+| Mã | Mô tả |
+|---|---|
+| `200` | Ký số SmartCA thành công |
+| `400` | Dữ liệu đầu vào không hợp lệ |
+| `401` | Thiếu header X-School-ID |
+| `403` | Role không được phép truy cập endpoint này |
+
+---
+
+### `POST /api/v1/integrations/vietqr/generate`
+
+<a id="generatevietqr"></a>
+
+**Sinh mã VietQR động chuẩn EMVCo và URL ảnh**
+
+Sinh mã VietQR động chuẩn EMVCo thanh toán tiền ăn, học phí bán trú
+theo Quyết định 1927/QĐ-NHNN và NAPAS 247.
+
+| Tên | Vị trí | Kiểu | Bắt buộc | Mô tả |
+|---|---|---|---|---|
+| `X-School-ID` | header | string | Có | UUID của trường (multi-tenancy). Thiếu header này trả 401. |
+| `X-User-Role` | header | string | Có | Vai trò người gọi. `SUPER_ADMIN` bypass mọi kiểm tra role. Giá trị: `BGH`, `TO_TRUONG`, `GVCN`, `GVBM`, `KE_TOAN`, `VAN_THU`, `PHHS`, `Y_TE`, `NHAN_VIEN_Y_TE`, `BEP_TRUONG`, `SUPER_ADMIN`. |
+
+### Request body
+
+| Trường | Kiểu | Bắt buộc | Mô tả |
+|---|---|---|---|
+| `bank_bin` | string | Có |  |
+| `account_number` | string | Có |  |
+| `account_name` | string | Không |  |
+| `amount` | number | Có |  |
+| `description` | string | Có |  |
+
+### Responses
+
+| Mã | Mô tả |
+|---|---|
+| `200` | Sinh mã VietQR thành công |
+| `400` | Dữ liệu đầu vào không hợp lệ |
+| `401` | Thiếu header X-School-ID |
+| `403` | Role không được phép truy cập endpoint này |
+
+---
+
+### `POST /api/v1/integrations/moet/sync`
+
+<a id="syncmoet"></a>
+
+**Đồng bộ hàng đợi Outbox lên CSDL Ngành Giáo dục MOET**
+
+Xử lý hàng đợi Outbox đồng bộ hồ sơ học sinh và học bạ số lên
+CSDL ngành Giáo dục và Đào tạo theo Thông tư 42/2021/TT-BGDĐT.
+
+| Tên | Vị trí | Kiểu | Bắt buộc | Mô tả |
+|---|---|---|---|---|
+| `X-School-ID` | header | string | Có | UUID của trường (multi-tenancy). Thiếu header này trả 401. |
+| `X-User-Role` | header | string | Có | Vai trò người gọi. `SUPER_ADMIN` bypass mọi kiểm tra role. Giá trị: `BGH`, `TO_TRUONG`, `GVCN`, `GVBM`, `KE_TOAN`, `VAN_THU`, `PHHS`, `Y_TE`, `NHAN_VIEN_Y_TE`, `BEP_TRUONG`, `SUPER_ADMIN`. |
+
+### Request body
+
+| Trường | Kiểu | Bắt buộc | Mô tả |
+|---|---|---|---|
+| `school_id` | string (uuid) | Không |  |
+| `academic_year` | string | Có |  |
+| `sync_type` | string | Có |  |
+| `batch_size` | integer | Không |  |
+
+### Responses
+
+| Mã | Mô tả |
+|---|---|
+| `200` | Đồng bộ hàng đợi MOET thành công |
+| `400` | Dữ liệu đầu vào không hợp lệ |
+| `401` | Thiếu header X-School-ID |
+| `403` | Role không được phép truy cập endpoint này |
+
+---
+
+### `GET /api/v1/integrations/moet/queue`
+
+<a id="getmoetqueue"></a>
+
+**Kiểm tra trạng thái hàng đợi Outbox MOET**
+
+Lấy số lượng bản ghi học sinh và học bạ số đang chờ đồng bộ lên MOET CSDL.
+
+| Tên | Vị trí | Kiểu | Bắt buộc | Mô tả |
+|---|---|---|---|---|
+| `X-School-ID` | header | string | Có | UUID của trường (multi-tenancy). Thiếu header này trả 401. |
+| `X-User-Role` | header | string | Có | Vai trò người gọi. `SUPER_ADMIN` bypass mọi kiểm tra role. Giá trị: `BGH`, `TO_TRUONG`, `GVCN`, `GVBM`, `KE_TOAN`, `VAN_THU`, `PHHS`, `Y_TE`, `NHAN_VIEN_Y_TE`, `BEP_TRUONG`, `SUPER_ADMIN`. |
+| `school_id` | query | string | Không |  |
+
+### Responses
+
+| Mã | Mô tả |
+|---|---|
+| `200` | Trạng thái hàng đợi |
+| `401` | Thiếu header X-School-ID |
+| `403` | Role không được phép truy cập endpoint này |
+
+---
+
+### `POST /api/v1/integrations/vneid/verify`
+
+<a id="verifyvneid"></a>
+
+**Xác thực định danh điện tử VNeID Mức 2**
+
+Xác thực thông tin định danh công dân mức độ 2 kết nối C06 Bộ Công an
+theo Nghị định 69/2024/NĐ-CP và kiểm tra Digital Consent Nghị định 13/2023/NĐ-CP.
+
+| Tên | Vị trí | Kiểu | Bắt buộc | Mô tả |
+|---|---|---|---|---|
+| `X-School-ID` | header | string | Có | UUID của trường (multi-tenancy). Thiếu header này trả 401. |
+| `X-User-Role` | header | string | Có | Vai trò người gọi. `SUPER_ADMIN` bypass mọi kiểm tra role. Giá trị: `BGH`, `TO_TRUONG`, `GVCN`, `GVBM`, `KE_TOAN`, `VAN_THU`, `PHHS`, `Y_TE`, `NHAN_VIEN_Y_TE`, `BEP_TRUONG`, `SUPER_ADMIN`. |
+
+### Request body
+
+| Trường | Kiểu | Bắt buộc | Mô tả |
+|---|---|---|---|
+| `national_id` | string | Có |  |
+| `full_name` | string | Có |  |
+| `date_of_birth` | string | Không |  |
+| `gender` | string | Không |  |
+| `consent_granted` | boolean | Có |  |
+
+### Responses
+
+| Mã | Mô tả |
+|---|---|
+| `200` | Xác thực VNeID Mức 2 thành công |
+| `400` | Dữ liệu đầu vào không hợp lệ |
+| `401` | Thiếu header X-School-ID |
+| `403` | Role không được phép truy cập endpoint này |
+| `422` | Chưa có sự đồng thuận số theo NĐ 13/2023 |
+
+---
+
+### `POST /api/v1/integrations/einvoice/issue`
+
+<a id="issueeinvoice"></a>
+
+**Phát hành hóa đơn điện tử Nghị định 123/2020/NĐ-CP**
+
+Phát hành hóa đơn điện tử học phí, tiền ăn bán trú có mã cơ quan thuế
+tuân thủ Nghị định 123/2020/NĐ-CP và Thông tư 78/2021/TT-BTC.
+
+| Tên | Vị trí | Kiểu | Bắt buộc | Mô tả |
+|---|---|---|---|---|
+| `X-School-ID` | header | string | Có | UUID của trường (multi-tenancy). Thiếu header này trả 401. |
+| `X-User-Role` | header | string | Có | Vai trò người gọi. `SUPER_ADMIN` bypass mọi kiểm tra role. Giá trị: `BGH`, `TO_TRUONG`, `GVCN`, `GVBM`, `KE_TOAN`, `VAN_THU`, `PHHS`, `Y_TE`, `NHAN_VIEN_Y_TE`, `BEP_TRUONG`, `SUPER_ADMIN`. |
+
+### Request body
+
+| Trường | Kiểu | Bắt buộc | Mô tả |
+|---|---|---|---|
+| `school_id` | string (uuid) | Không |  |
+| `buyer_name` | string | Có |  |
+| `buyer_tax_code` | string | Không |  |
+| `student_name` | string | Không |  |
+| `student_class` | string | Không |  |
+| `items` | array<object> | Có |  |
+
+### Responses
+
+| Mã | Mô tả |
+|---|---|
+| `200` | Phát hành hóa đơn điện tử thành công |
+| `400` | Dữ liệu đầu vào không hợp lệ |
+| `401` | Thiếu header X-School-ID |
+| `403` | Role không được phép truy cập endpoint này |
+
+---
+
+### `GET /api/v1/integrations/sandbox/status`
+
+<a id="getsandboxstatus"></a>
+
+**Trạng thái các cổng tích hợp Sandbox Stubs**
+
+Trả về trạng thái hoạt động và đặc tả kỹ thuật của toàn bộ 5 hệ thống sandbox ngoại vi.
+
+| Tên | Vị trí | Kiểu | Bắt buộc | Mô tả |
+|---|---|---|---|---|
+| `X-School-ID` | header | string | Có | UUID của trường (multi-tenancy). Thiếu header này trả 401. |
+| `X-User-Role` | header | string | Có | Vai trò người gọi. `SUPER_ADMIN` bypass mọi kiểm tra role. Giá trị: `BGH`, `TO_TRUONG`, `GVCN`, `GVBM`, `KE_TOAN`, `VAN_THU`, `PHHS`, `Y_TE`, `NHAN_VIEN_Y_TE`, `BEP_TRUONG`, `SUPER_ADMIN`. |
+
+### Responses
+
+| Mã | Mô tả |
+|---|---|
+| `200` | Danh sách trạng thái 5 cổng sandbox stubs |
+| `401` | Thiếu header X-School-ID |
+| `403` | Role không được phép truy cập endpoint này |
 
 ---
